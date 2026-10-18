@@ -111,6 +111,13 @@
                     Content="Stop overlay"
                     Click="StopOverlay_OnClick"
                     IsEnabled="False" />
+            <Button x:Name="EditButton"
+                    Width="110"
+                    Height="34"
+                    Margin="0,0,10,0"
+                    Content="Edit mode"
+                    Click="ToggleEditMode_OnClick"
+                    IsEnabled="False" />
             <Button x:Name="StartButton"
                     Width="130"
                     Height="34"

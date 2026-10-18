@@ -65,6 +65,8 @@ Build Reacta trafia do `dist` i jest kopiowany do katalogu wyjściowego aplikacj
 
 Po uruchomieniu aplikacji pojawi się główne okno konfiguratora WPF. Ustaw szerokość, wysokość oraz pozycję X/Y, a następnie kliknij `Start overlay`. Przycisk `Stop overlay` zamyka przezroczyste okno WebView2. Ostatnie ustawienia są zapisywane w `%AppData%\GonzoOverlay\settings.json`.
 
+Po uruchomieniu overlaya przycisk `Edit mode` włącza edycję bezpośrednio na panelu. W tym trybie przeciągnięcie panelu lewym przyciskiem myszy zmienia jego pozycję, a przeciągnięcie prawego dolnego rogu zmienia rozmiar. Niebieskie obramowanie oznacza aktywny tryb edycji. Wyłączenie trybu zapisuje nowe ustawienia.
+
 W trybie deweloperskim frontend można uruchomić przez `npm run dev`; później WebView2 zostanie skonfigurowany do pracy z serwerem Vite.
 
 Na obecnym etapie interfejs React wyświetla tylko aktualny stan nawierzchni toru z `TrackWetness`, np. `Dry`, `LightlyWet` albo `VeryWet`. Odczyty prędkości, obrotów, biegu i paliwa pozostają w backendzie i zostaną przywrócone do UI w kolejnych panelach.

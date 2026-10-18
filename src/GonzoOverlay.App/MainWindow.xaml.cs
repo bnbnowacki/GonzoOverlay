@@ -38,12 +38,37 @@ public partial class MainWindow : Window
 
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
+        EditButton.IsEnabled = true;
+        EditButton.Content = "Edit mode";
         UpdateStatus($"Overlay aktywny: {settings.Width:0} × {settings.Height:0} px, X={settings.Left:0}, Y={settings.Top:0}.");
     }
 
     private void StopOverlay_OnClick(object sender, RoutedEventArgs e)
     {
         StopOverlay();
+    }
+
+    private void ToggleEditMode_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_overlayWindow is null)
+        {
+            return;
+        }
+
+        var editModeEnabled = !_overlayWindow.IsEditMode;
+        _overlayWindow.SetEditMode(editModeEnabled);
+
+        if (editModeEnabled)
+        {
+            EditButton.Content = "Exit edit mode";
+            UpdateStatus("Edit mode: przeciągnij panel lub chwyć jego prawy dolny róg, aby zmienić rozmiar.");
+        }
+        else
+        {
+            SaveCurrentOverlaySettings();
+            EditButton.Content = "Edit mode";
+            UpdateStatus("Ustawienia overlaya zapisane.");
+        }
     }
 
     private void MainWindow_OnClosed(object? sender, EventArgs e)
@@ -55,9 +80,12 @@ public partial class MainWindow : Window
     {
         if (ReferenceEquals(sender, _overlayWindow))
         {
+            SaveCurrentOverlaySettings();
             _overlayWindow = null;
             StartButton.IsEnabled = true;
             StopButton.IsEnabled = false;
+            EditButton.IsEnabled = false;
+            EditButton.Content = "Edit mode";
             UpdateStatus("Overlay zatrzymany.");
         }
     }
@@ -70,12 +98,27 @@ public partial class MainWindow : Window
         }
 
         var overlay = _overlayWindow;
+        SaveCurrentOverlaySettings();
         _overlayWindow = null;
         overlay.Close();
 
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
+        EditButton.IsEnabled = false;
+        EditButton.Content = "Edit mode";
         UpdateStatus("Overlay zatrzymany.");
+    }
+
+    private void SaveCurrentOverlaySettings()
+    {
+        if (_overlayWindow is null)
+        {
+            return;
+        }
+
+        var settings = _overlayWindow.Settings;
+        _settingsStore.Save(settings);
+        LoadSettings(settings);
     }
 
     private void LoadSettings(OverlaySettings settings)
