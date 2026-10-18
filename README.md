@@ -63,7 +63,11 @@ dotnet run --project .\src\GonzoOverlay.App\GonzoOverlay.App.csproj
 
 Build Reacta trafia do `dist` i jest kopiowany do katalogu wyjściowego aplikacji WPF. Jeżeli frontend nie został jeszcze zbudowany, WPF wyświetli stronę informacyjną zamiast UI.
 
+Po uruchomieniu aplikacji pojawi się główne okno konfiguratora WPF. Ustaw szerokość, wysokość oraz pozycję X/Y, a następnie kliknij `Start overlay`. Przycisk `Stop overlay` zamyka przezroczyste okno WebView2. Ostatnie ustawienia są zapisywane w `%AppData%\GonzoOverlay\settings.json`.
+
 W trybie deweloperskim frontend można uruchomić przez `npm run dev`; później WebView2 zostanie skonfigurowany do pracy z serwerem Vite.
+
+Na obecnym etapie interfejs React wyświetla tylko aktualny stan nawierzchni toru z `TrackWetness`, np. `Dry`, `LightlyWet` albo `VeryWet`. Odczyty prędkości, obrotów, biegu i paliwa pozostają w backendzie i zostaną przywrócone do UI w kolejnych panelach.
 
 ## SDK
 

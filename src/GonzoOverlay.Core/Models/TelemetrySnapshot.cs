@@ -7,3 +7,7 @@ public sealed record TelemetrySnapshot(
     int? Gear,
     float? FuelLevelLiters,
     DateTimeOffset Timestamp);
+
+public sealed record WeatherSnapshot(
+    string TrackWetness,
+    DateTimeOffset Timestamp);

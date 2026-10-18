@@ -6,6 +6,8 @@ public interface ITelemetryProvider : IAsyncDisposable
 {
     event Action<TelemetrySnapshot>? TelemetryUpdated;
 
+    event Action<WeatherSnapshot>? WeatherUpdated;
+
     event Action<string>? ConnectionStateChanged;
 
     event Action<Exception>? Error;

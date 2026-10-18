@@ -9,7 +9,8 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.Speed,
     TelemetryVar.RPM,
     TelemetryVar.Gear,
-    TelemetryVar.FuelLevel])]
+    TelemetryVar.FuelLevel,
+    TelemetryVar.TrackWetness])]
 internal static class IracingTelemetrySchema
 {
 }
@@ -25,6 +26,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     }
 
     public event Action<TelemetrySnapshot>? TelemetryUpdated;
+
+    public event Action<WeatherSnapshot>? WeatherUpdated;
 
     public event Action<string>? ConnectionStateChanged;
 
@@ -58,6 +61,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             DateTimeOffset.UtcNow);
 
                         PublishTelemetry(snapshot);
+                        PublishWeather(new WeatherSnapshot(
+                            data.TrackWetness?.ToString() ?? "Unknown",
+                            snapshot.Timestamp));
                         return Task.CompletedTask;
                     },
                     OnConnectStateChanged = state =>
@@ -119,6 +125,19 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         catch (Exception exception)
         {
             _logger.LogError(exception, "Błąd odbiorcy danych telemetrii");
+            PublishError(exception);
+        }
+    }
+
+    private void PublishWeather(WeatherSnapshot snapshot)
+    {
+        try
+        {
+            WeatherUpdated?.Invoke(snapshot);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Błąd odbiorcy stanu pogody");
             PublishError(exception);
         }
     }

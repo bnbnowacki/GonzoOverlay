@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.IO;
 using System.Windows;
+using GonzoOverlay.App.Models;
 using GonzoOverlay.Core.Models;
 using GonzoOverlay.Infrastructure.iRacing;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,13 +21,18 @@ public partial class OverlayWindow : Window
     private Task? _telemetryTask;
     private bool _webViewReady;
 
-    public OverlayWindow()
+    public OverlayWindow(OverlaySettings settings)
     {
         InitializeComponent();
 
+        Width = settings.Width;
+        Height = settings.Height;
+        Left = settings.Left;
+        Top = settings.Top;
+
         _telemetryProvider = new IracingTelemetryProvider(
             NullLogger<IracingTelemetryProvider>.Instance);
-        _telemetryProvider.TelemetryUpdated += OnTelemetryUpdated;
+        _telemetryProvider.WeatherUpdated += OnWeatherUpdated;
         _telemetryProvider.ConnectionStateChanged += OnConnectionStateChanged;
     }
 
@@ -78,9 +84,9 @@ public partial class OverlayWindow : Window
         _webViewReady = true;
     }
 
-    private void OnTelemetryUpdated(TelemetrySnapshot snapshot)
+    private void OnWeatherUpdated(WeatherSnapshot snapshot)
     {
-        PostMessage("telemetry", snapshot);
+        PostMessage("weather", snapshot);
     }
 
     private void OnConnectionStateChanged(string state)
