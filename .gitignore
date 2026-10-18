@@ -2,6 +2,9 @@ bin/
 obj/
 .dotnet-cli/
 .nuget/
+node_modules/
+dist/
+*.tsbuildinfo
 .vs/
 *.user
 *.suo

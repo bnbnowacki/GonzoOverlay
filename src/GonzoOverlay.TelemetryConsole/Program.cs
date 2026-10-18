@@ -1,11 +1,7 @@
+using GonzoOverlay.Core.Models;
+using GonzoOverlay.Infrastructure.iRacing;
 using Microsoft.Extensions.Logging;
-using SVappsLAB.iRacingTelemetrySDK;
 
-[RequiredTelemetryVars([
-    TelemetryVar.Speed,
-    TelemetryVar.RPM,
-    TelemetryVar.Gear,
-    TelemetryVar.FuelLevel])]
 internal static class Program
 {
     private static readonly object ConsoleLock = new();
@@ -26,95 +22,35 @@ internal static class Program
                 });
         });
 
-        var logger = loggerFactory.CreateLogger("GonzoOverlay.TelemetryConsole");
         using var cancellation = new CancellationTokenSource();
-
         Console.CancelKeyPress += (_, eventArgs) =>
         {
             eventArgs.Cancel = true;
             cancellation.Cancel();
         };
 
+        await using var provider = new IracingTelemetryProvider(
+            loggerFactory.CreateLogger<IracingTelemetryProvider>());
+
+        provider.ConnectionStateChanged += state =>
+        {
+            Volatile.Write(ref _connectionState, state);
+            WriteLine($"Stan połączenia: {state}");
+        };
+        provider.TelemetryUpdated += snapshot =>
+        {
+            Interlocked.Exchange(ref _latestTelemetry, snapshot);
+            Interlocked.Increment(ref _sampleCount);
+        };
+
         PrintHeader();
 
         var displayTask = DisplayLoopAsync(cancellation.Token);
-        await MonitorUntilCancelledAsync(logger, cancellation.Token);
+        await provider.StartAsync(cancellation.Token);
 
         cancellation.Cancel();
         await displayTask;
         WriteLine("Zakończono.");
-    }
-
-    private static async Task MonitorUntilCancelledAsync(
-        ILogger logger,
-        CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                Volatile.Write(ref _connectionState, "Waiting for iRacing");
-
-                await using var client = TelemetryClient<TelemetryData>.Create(logger);
-                var handlers = new TelemetryHandlers<TelemetryData>
-                {
-                    OnTelemetryUpdate = data =>
-                    {
-                        var speed = data.Speed is { } speedMetersPerSecond
-                            ? $"{speedMetersPerSecond * 3.6f:F1} km/h ({speedMetersPerSecond:F1} m/s)"
-                            : "N/A";
-
-                        var snapshot = new TelemetrySnapshot(
-                            speed,
-                            data.RPM?.ToString("F0") ?? "N/A",
-                            data.Gear?.ToString() ?? "N/A",
-                            data.FuelLevel?.ToString("F2") ?? "N/A");
-
-                        Interlocked.Exchange(ref _latestTelemetry, snapshot);
-                        Interlocked.Increment(ref _sampleCount);
-                        return Task.CompletedTask;
-                    },
-                    OnConnectStateChanged = state =>
-                    {
-                        var stateText = state.ToString();
-                        Volatile.Write(ref _connectionState, stateText);
-                        WriteLine($"Stan połączenia: {stateText}");
-                        return Task.CompletedTask;
-                    },
-                    OnError = error =>
-                    {
-                        logger.LogError(error, "Błąd SDK telemetrii");
-                        return Task.CompletedTask;
-                    }
-                };
-
-                await client.Monitor(handlers, cancellationToken);
-
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    Volatile.Write(ref _connectionState, "Monitor stopped; retrying");
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Monitor zakończył się błędem; ponawiam połączenie");
-                Volatile.Write(ref _connectionState, "Retrying after error");
-
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-            }
-        }
     }
 
     private static async Task DisplayLoopAsync(CancellationToken cancellationToken)
@@ -126,8 +62,11 @@ internal static class Program
             var samples = Interlocked.Read(ref _sampleCount);
             var telemetryText = snapshot is null
                 ? "brak danych"
-                : $"Prędkość: {snapshot.Speed} | Obroty: {snapshot.Rpm} RPM | "
-                  + $"Bieg: {snapshot.Gear} | Paliwo: {snapshot.FuelLevel} L";
+                : $"Prędkość: {snapshot.SpeedKmh?.ToString("F1") ?? "N/A"} km/h "
+                  + $"({snapshot.SpeedMetersPerSecond?.ToString("F1") ?? "N/A"} m/s) | "
+                  + $"Obroty: {snapshot.Rpm?.ToString("F0") ?? "N/A"} RPM | "
+                  + $"Bieg: {snapshot.Gear?.ToString() ?? "N/A"} | "
+                  + $"Paliwo: {snapshot.FuelLevelLiters?.ToString("F2") ?? "N/A"} L";
 
             WriteLine($"[{DateTime.Now:HH:mm:ss}] {connectionState} | {telemetryText} | Próbek: {samples}");
 
@@ -146,7 +85,7 @@ internal static class Program
     {
         WriteLine("GonzoOverlay — test telemetrii iRacing");
         WriteLine("Uruchom iRacing, aby rozpocząć odczyt. Ctrl+C kończy program.");
-        WriteLine(new string('-', 110));
+        WriteLine(new string('-', 120));
     }
 
     private static void WriteLine(string message)
@@ -156,10 +95,4 @@ internal static class Program
             Console.WriteLine(message);
         }
     }
-
-    private sealed record TelemetrySnapshot(
-        string Speed,
-        string Rpm,
-        string Gear,
-        string FuelLevel);
 }

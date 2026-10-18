@@ -1,0 +1,21 @@
+<Window x:Class="GonzoOverlay.App.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="GonzoOverlay"
+        Width="1000"
+        Height="320"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Loaded="OverlayWindow_OnLoaded"
+        Closed="OverlayWindow_OnClosed">
+    <Border Background="#E6111620"
+            BorderBrush="#FF3C82F6"
+            BorderThickness="1"
+            CornerRadius="12">
+        <wv2:WebView2 x:Name="OverlayWebView" />
+    </Border>
+</Window>

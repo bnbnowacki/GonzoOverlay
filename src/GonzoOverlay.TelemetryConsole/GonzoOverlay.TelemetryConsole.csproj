@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SVappsLAB.iRacingTelemetrySDK" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <ProjectReference Include="..\GonzoOverlay.Infrastructure.iRacing\GonzoOverlay.Infrastructure.iRacing.csproj" />
   </ItemGroup>
 
 </Project>

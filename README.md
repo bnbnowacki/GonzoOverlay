@@ -1,6 +1,6 @@
 # GonzoOverlay
 
-Pierwszy etap projektu: konsolowy monitor telemetrii iRacing dla Windows. Projekt nie zawiera jeszcze graficznego overlaya, WPF, WebView2 ani interfejsu React/TypeScript.
+Overlay do symulatora iRacing dla Windows. Solution zawiera host WPF z WebView2, frontend React/TypeScript, wspólny projekt Core, integrację z SDK iRacing oraz narzędzie konsolowe do testów telemetrii.
 
 ## Wymagania
 
@@ -8,7 +8,7 @@ Pierwszy etap projektu: konsolowy monitor telemetrii iRacing dla Windows. Projek
 - .NET SDK 8.0 lub nowszy
 - zainstalowany iRacing oraz działająca sesja symulatora
 
-## Uruchomienie
+## Uruchomienie konsoli telemetrycznej
 
 Z katalogu głównego repozytorium:
 
@@ -38,16 +38,32 @@ Naciśnij `Ctrl+C`, aby zakończyć. Stan połączenia jest raportowany przez ca
 
 Jeżeli aplikacja długo pokazuje `Waiting for iRacing`, sprawdź, czy iRacing faktycznie działa na tym samym komputerze i czy aplikacja nie jest uruchomiona w środowisku innym niż Windows. Live telemetry SDK wymaga działającego iRacing; odtwarzanie plików IBT nie jest jeszcze częścią tego etapu.
 
-## Struktura
+## Struktura projektu
 
 ```text
-GonzoOverlay.sln
-├── README.md
-└── src
-    └── GonzoOverlay.TelemetryConsole
-        ├── GonzoOverlay.TelemetryConsole.csproj
-        └── Program.cs
+src/
+├── GonzoOverlay.App/                     # WPF + WebView2, host overlaya
+├── GonzoOverlay.Core/                    # modele i kontrakty niezależne od UI/SDK
+├── GonzoOverlay.Infrastructure.iRacing/ # adapter SVappsLAB.iRacingTelemetrySDK
+├── GonzoOverlay.TelemetryConsole/       # narzędzie do testów live telemetry
+└── GonzoOverlay.UI/                     # React + TypeScript + Vite
 ```
+
+## Uruchomienie WPF overlaya
+
+Frontend React jest budowany osobno:
+
+```powershell
+cd .\src\GonzoOverlay.UI
+npm install
+npm run build
+cd ..\..
+dotnet run --project .\src\GonzoOverlay.App\GonzoOverlay.App.csproj
+```
+
+Build Reacta trafia do `dist` i jest kopiowany do katalogu wyjściowego aplikacji WPF. Jeżeli frontend nie został jeszcze zbudowany, WPF wyświetli stronę informacyjną zamiast UI.
+
+W trybie deweloperskim frontend można uruchomić przez `npm run dev`; później WebView2 zostanie skonfigurowany do pracy z serwerem Vite.
 
 ## SDK
 
