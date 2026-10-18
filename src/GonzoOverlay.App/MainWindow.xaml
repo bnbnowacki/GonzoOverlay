@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GonzoOverlay — konfigurator"
         Width="520"
-        Height="420"
+        Height="500"
         MinWidth="520"
-        MinHeight="420"
+        MinHeight="500"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         Background="#F4F6FA"
@@ -14,7 +14,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
