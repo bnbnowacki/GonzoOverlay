@@ -5,56 +5,78 @@
   font-synthesis: none;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
+  margin: 0;
   background: transparent;
   overflow: hidden;
 }
 
-#root {
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+}
+
+.overlay-shell {
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
 }
 
-.weather-overlay {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+.widget-frame {
+  position: absolute;
+  min-width: 80px;
+  min-height: 40px;
+  touch-action: none;
+  container-type: size;
+}
+
+.weather-widget {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(4px, 6vw, 16px);
-  padding: clamp(5px, 6vw, 12px) clamp(7px, 7vw, 16px);
+  width: 100%;
+  height: 100%;
+  gap: clamp(2px, min(5cqw, 8cqh), 12px);
+  padding: clamp(3px, min(6cqw, 10cqh), 10px)
+    clamp(4px, 6cqw, 14px);
   border: 1px solid rgba(97, 161, 255, 0.8);
-  border-radius: clamp(6px, 4vw, 10px);
+  border-radius: clamp(4px, 4cqw, 10px);
   background: rgba(17, 22, 32, 0.84);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   overflow: hidden;
 }
 
 .weather-label {
-  color: #8ea0b8;
   flex: 0 1 auto;
   min-width: 0;
-  font-size: clamp(7px, 4vw, 10px);
+  color: #8ea0b8;
+  max-width: 45%;
+  overflow: hidden;
+  font-size: clamp(6px, min(4cqw, 28cqh), 10px);
   font-weight: 700;
   letter-spacing: 0.14em;
   line-height: 1;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.weather-overlay strong {
+.weather-widget strong {
   flex: 0 1 auto;
   min-width: 0;
   color: #61a1ff;
-  font-size: clamp(11px, 9vw, 20px);
+  max-width: 55%;
+  overflow: hidden;
+  font-size: clamp(8px, min(9cqw, 42cqh), 20px);
   line-height: 1;
+  text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -24,8 +24,19 @@ public sealed class OverlaySettingsStore
             if (File.Exists(_settingsPath))
             {
                 var json = File.ReadAllText(_settingsPath);
-                return JsonSerializer.Deserialize<OverlaySettings>(json, JsonOptions)
+                var settings = JsonSerializer.Deserialize<OverlaySettings>(json, JsonOptions)
                     ?? new OverlaySettings();
+
+                // Older settings files did not contain widget layout information.
+                if (settings.Widgets is null || settings.Widgets.Count == 0)
+                {
+                    settings.Widgets = new()
+                    {
+                        OverlayWidgetSettings.CreateWeatherDefault()
+                    };
+                }
+
+                return settings;
             }
         }
         catch

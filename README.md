@@ -63,9 +63,9 @@ dotnet run --project .\src\GonzoOverlay.App\GonzoOverlay.App.csproj
 
 Build Reacta trafia do `dist` i jest kopiowany do katalogu wyjściowego aplikacji WPF. Jeżeli frontend nie został jeszcze zbudowany, WPF wyświetli stronę informacyjną zamiast UI.
 
-Po uruchomieniu aplikacji pojawi się główne okno konfiguratora WPF. Ustaw szerokość, wysokość oraz pozycję X/Y, a następnie kliknij `Start overlay`. Przycisk `Stop overlay` zamyka przezroczyste okno WebView2. Ostatnie ustawienia są zapisywane w `%AppData%\GonzoOverlay\settings.json`.
+Po uruchomieniu aplikacji pojawi się główne okno konfiguratora WPF. Kliknij `Start overlay`, a aplikacja automatycznie wybierze monitor, na którym znajduje się konfigurator, i utworzy na nim pełnoekranowy overlay. Przycisk `Stop overlay` zamyka overlay. Ostatnie ustawienia widgetów są zapisywane w `%AppData%\GonzoOverlay\settings.json`.
 
-Po uruchomieniu overlaya przycisk `Edit mode` włącza edycję bezpośrednio na panelu. W tym trybie przeciągnięcie panelu lewym przyciskiem myszy zmienia jego pozycję, a przeciągnięcie prawego dolnego rogu zmienia rozmiar. Niebieskie obramowanie oznacza aktywny tryb edycji. Wyłączenie trybu zapisuje nowe ustawienia.
+Po uruchomieniu overlaya przycisk `Edit mode` przełącza natywną warstwę edycji WPF. W tym trybie każdy aktywny widget można przesuwać po całym monitorze i zmieniać jego rozmiar przez prawy dolny uchwyt. Niebieskie obramowania oznaczają edytowalne widgety. WebView2 jest na czas edycji ukrywany, a wyłączenie trybu zapisuje pozycje i rozmiary wszystkich widgetów.
 
 W trybie deweloperskim frontend można uruchomić przez `npm run dev`; później WebView2 zostanie skonfigurowany do pracy z serwerem Vite.
 

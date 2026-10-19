@@ -1,16 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { WidgetSlot } from './widgets/WidgetSlot';
+import { widgetRegistry, type WidgetRenderContext } from './widgets/WidgetRegistry';
+import type {
+  OverlayConfig,
+  OverlayHostMessage,
+  OverlayMessage,
+  WeatherSnapshot,
+} from './overlay/types';
 
-type WeatherSnapshot = {
-  trackWetness: string;
-  timestamp: string;
+const defaultWeather: WeatherSnapshot = {
+  trackWetness: 'Unknown',
+  timestamp: new Date().toISOString(),
 };
 
-type OverlayMessage =
-  | { type: 'weather'; payload: WeatherSnapshot }
-  | { type: 'connection'; payload: { state: string } };
+function postToHost(message: OverlayHostMessage) {
+  window.chrome?.webview?.postMessage(message);
+}
 
 function App() {
-  const [weather, setWeather] = useState('Unknown');
+  const [config, setConfig] = useState<OverlayConfig>({
+    editMode: false,
+    widgets: [],
+  });
+  const [weather, setWeather] = useState(defaultWeather);
 
   useEffect(() => {
     const webView = window.chrome?.webview;
@@ -19,23 +31,50 @@ function App() {
     }
 
     const handleMessage = (event: MessageEvent<OverlayMessage>) => {
-      if (event.data.type === 'weather') {
-        setWeather(event.data.payload.trackWetness);
+      const message = event.data;
+
+      if (message.type === 'overlay.config') {
+        setConfig(message.payload);
       }
 
-      if (event.data.type === 'connection' && event.data.payload.state !== 'Connected') {
-        setWeather('Unknown');
+      if (message.type === 'weather') {
+        setWeather(message.payload);
+      }
+
+      if (message.type === 'connection' && message.payload.state !== 'Connected') {
+        setWeather((current) => ({
+          ...current,
+          trackWetness: 'Unknown',
+        }));
       }
     };
 
     webView.addEventListener('message', handleMessage);
+    postToHost({ type: 'overlay.ready' });
     return () => webView.removeEventListener('message', handleMessage);
   }, []);
 
+  const renderContext = useMemo<WidgetRenderContext>(() => ({ weather }), [weather]);
+
   return (
-    <main className="weather-overlay">
-      <span className="weather-label">TRACK</span>
-      <strong>{weather}</strong>
+    <main className="overlay-shell">
+      {config.widgets
+        .filter((settings) => settings.enabled)
+        .map((settings) => {
+          const definition = widgetRegistry.find((widget) => widget.id === settings.id);
+          if (!definition) {
+            return null;
+          }
+
+          return (
+            <WidgetSlot
+              key={settings.id}
+              settings={settings}
+            >
+              {definition.render(renderContext)}
+            </WidgetSlot>
+          );
+        })}
     </main>
   );
 }
@@ -46,8 +85,15 @@ declare global {
   interface Window {
     chrome?: {
       webview?: {
-        addEventListener: (type: 'message', listener: (event: MessageEvent<OverlayMessage>) => void) => void;
-        removeEventListener: (type: 'message', listener: (event: MessageEvent<OverlayMessage>) => void) => void;
+        addEventListener: (
+          type: 'message',
+          listener: (event: MessageEvent<OverlayMessage>) => void,
+        ) => void;
+        removeEventListener: (
+          type: 'message',
+          listener: (event: MessageEvent<OverlayMessage>) => void,
+        ) => void;
+        postMessage: (message: OverlayHostMessage) => void;
       };
     };
   }

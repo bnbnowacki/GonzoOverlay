@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GonzoOverlay — konfigurator"
         Width="520"
-        Height="500"
+        Height="430"
         MinWidth="520"
-        MinHeight="500"
+        MinHeight="430"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         Background="#F4F6FA"
@@ -15,7 +15,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -30,7 +30,7 @@
                        FontSize="28"
                        FontWeight="SemiBold" />
             <TextBlock Margin="0,8,0,0"
-                       Text="Ustaw pozycję i rozmiar panelu pogody, a następnie uruchom overlay."
+                       Text="Overlay automatycznie dopasuje się do monitora, na którym znajduje się konfigurator."
                        Foreground="#667085"
                        FontSize="13"
                        TextWrapping="Wrap" />
@@ -38,61 +38,17 @@
 
         <TextBlock Grid.Row="1"
                    Margin="0,28,0,12"
-                   Text="Położenie i rozmiar okna"
+                   Text="Widgety"
                    Foreground="#27364D"
                    FontSize="16"
                    FontWeight="SemiBold" />
 
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,16">
-                <TextBlock Text="Szerokość"
-                           Foreground="#667085"
-                           FontSize="12" />
-                <TextBox x:Name="WidthTextBox"
-                         Margin="0,6,0,0"
-                         Padding="9,7"
-                         FontSize="14" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,16">
-                <TextBlock Text="Wysokość"
-                           Foreground="#667085"
-                           FontSize="12" />
-                <TextBox x:Name="HeightTextBox"
-                         Margin="0,6,0,0"
-                         Padding="9,7"
-                         FontSize="14" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,0">
-                <TextBlock Text="Pozycja X"
-                           Foreground="#667085"
-                           FontSize="12" />
-                <TextBox x:Name="LeftTextBox"
-                         Margin="0,6,0,0"
-                         Padding="9,7"
-                         FontSize="14" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
-                <TextBlock Text="Pozycja Y"
-                           Foreground="#667085"
-                           FontSize="12" />
-                <TextBox x:Name="TopTextBox"
-                         Margin="0,6,0,0"
-                         Padding="9,7"
-                         FontSize="14" />
-            </StackPanel>
-        </Grid>
+        <CheckBox x:Name="WeatherWidgetCheckBox"
+                  Grid.Row="2"
+                  Content="Pogoda toru — wilgotność nawierzchni"
+                  Foreground="#27364D"
+                  FontSize="13"
+                  IsChecked="True" />
 
         <TextBlock x:Name="StatusText"
                    Grid.Row="3"
