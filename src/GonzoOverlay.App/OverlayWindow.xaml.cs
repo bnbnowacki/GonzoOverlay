@@ -461,6 +461,7 @@ public partial class OverlayWindow : Window
     private static string GetWidgetTitle(string id) => id switch
     {
         OverlayWidgetIds.Weather => "Pogoda toru",
+        OverlayWidgetIds.PitSpeedHelper => "Pit Speed Helper",
         _ => id
     };
 

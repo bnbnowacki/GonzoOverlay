@@ -38,7 +38,8 @@ button {
   container-type: size;
 }
 
-.weather-widget {
+.weather-widget,
+.pit-speed-helper-widget {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -52,6 +53,91 @@ button {
   background: rgba(17, 22, 32, 0.84);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   overflow: hidden;
+}
+
+.pit-speed-helper-widget {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(6px, 4cqw, 14px);
+  padding: clamp(6px, 5cqw, 12px);
+}
+
+.pit-speed-helper-bar {
+  position: relative;
+  width: clamp(16px, 16cqw, 42px);
+  min-width: 14px;
+  height: 100%;
+  overflow: hidden;
+  border: 2px solid rgba(238, 244, 252, 0.92);
+  border-radius: 2px;
+  background: rgba(3, 8, 14, 0.52);
+}
+
+.pit-speed-helper-fill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  background: #e24c4c;
+  transition: height 80ms linear;
+}
+
+.pit-speed-helper-fill-green {
+  background: #24bb4d;
+}
+
+.pit-speed-helper-fill-red {
+  bottom: 50%;
+  background: #e24c4c;
+}
+
+.pit-speed-helper-limit-line {
+  position: absolute;
+  right: -3px;
+  bottom: calc(50% - 1px);
+  left: -3px;
+  z-index: 2;
+  height: 3px;
+  border-radius: 2px;
+  background: #f8e66c;
+  box-shadow: 0 0 5px rgba(248, 230, 108, 0.9);
+}
+
+.pit-speed-helper-readout {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+  color: #d7e3f2;
+  font-size: clamp(8px, min(3.4cqw, 12cqh), 12px);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pit-speed-helper-readout strong {
+  color: #fff;
+  font-size: clamp(10px, min(5cqw, 18cqh), 18px);
+}
+
+.pit-speed-helper-mode {
+  color: #f8e66c;
+  font-size: clamp(7px, min(2.8cqw, 10cqh), 10px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.pit-speed-helper-limit {
+  color: #8ea0b8;
+  font-size: clamp(7px, min(2.8cqw, 10cqh), 10px);
+}
+
+.pit-speed-helper-safe {
+  color: #55dc7a;
+  font-weight: 700;
 }
 
 .weather-label {

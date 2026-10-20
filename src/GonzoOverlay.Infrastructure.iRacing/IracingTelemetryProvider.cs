@@ -1,3 +1,4 @@
+using System.Globalization;
 using GonzoOverlay.Core.Contracts;
 using GonzoOverlay.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -10,6 +11,8 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.RPM,
     TelemetryVar.Gear,
     TelemetryVar.FuelLevel,
+    TelemetryVar.OnPitRoad,
+    TelemetryVar.PlayerTrackSurface,
     TelemetryVar.TrackWetness])]
 internal static class IracingTelemetrySchema
 {
@@ -19,6 +22,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
 {
     private readonly ILogger<IracingTelemetryProvider> _logger;
     private readonly CancellationTokenSource _disposeCancellation = new();
+    private float? _pitSpeedLimitMetersPerSecond;
 
     public IracingTelemetryProvider(ILogger<IracingTelemetryProvider> logger)
     {
@@ -55,6 +59,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         var snapshot = new TelemetrySnapshot(
                             speedMetersPerSecond,
                             speedMetersPerSecond * 3.6f,
+                            _pitSpeedLimitMetersPerSecond,
+                            data.OnPitRoad,
+                            data.PlayerTrackSurface == TrackLocation.AproachingPits,
                             data.RPM,
                             data.Gear,
                             data.FuelLevel,
@@ -64,6 +71,12 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         PublishWeather(new WeatherSnapshot(
                             data.TrackWetness?.ToString() ?? "Unknown",
                             snapshot.Timestamp));
+                        return Task.CompletedTask;
+                    },
+                    OnSessionInfoUpdate = session =>
+                    {
+                        _pitSpeedLimitMetersPerSecond = ParsePitSpeedLimit(
+                            session.WeekendInfo?.TrackPitSpeedLimit?.ToString());
                         return Task.CompletedTask;
                     },
                     OnConnectStateChanged = state =>
@@ -127,6 +140,32 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             _logger.LogError(exception, "Błąd odbiorcy danych telemetrii");
             PublishError(exception);
         }
+    }
+
+    private static float? ParsePitSpeedLimit(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return null;
+        }
+
+        var numericPart = rawValue.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        if (!float.TryParse(
+                numericPart,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var value))
+        {
+            return null;
+        }
+
+        if (rawValue.Contains("m/s", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        // WeekendInfo normally reports TrackPitSpeedLimit in kph.
+        return value / 3.6f;
     }
 
     private void PublishWeather(WeatherSnapshot snapshot)

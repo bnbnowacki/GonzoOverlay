@@ -32,9 +32,13 @@ public sealed class OverlaySettingsStore
                 {
                     settings.Widgets = new()
                     {
-                        OverlayWidgetSettings.CreateWeatherDefault()
+                        OverlayWidgetSettings.CreateWeatherDefault(),
+                        OverlayWidgetSettings.CreatePitSpeedHelperDefault()
                     };
                 }
+
+                AddMissingWidget(settings, OverlayWidgetIds.Weather, OverlayWidgetSettings.CreateWeatherDefault);
+                AddMissingWidget(settings, OverlayWidgetIds.PitSpeedHelper, OverlayWidgetSettings.CreatePitSpeedHelperDefault);
 
                 return settings;
             }
@@ -45,6 +49,19 @@ public sealed class OverlaySettingsStore
         }
 
         return new OverlaySettings();
+    }
+
+    private static void AddMissingWidget(
+        OverlaySettings settings,
+        string widgetId,
+        Func<OverlayWidgetSettings> createDefault)
+    {
+        if (settings.Widgets.Any(widget => widget.Id == widgetId))
+        {
+            return;
+        }
+
+        settings.Widgets.Add(createDefault());
     }
 
     public void Save(OverlaySettings settings)

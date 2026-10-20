@@ -5,11 +5,24 @@ import type {
   OverlayConfig,
   OverlayHostMessage,
   OverlayMessage,
+  TelemetrySnapshot,
   WeatherSnapshot,
 } from './overlay/types';
 
 const defaultWeather: WeatherSnapshot = {
   trackWetness: 'Unknown',
+  timestamp: new Date().toISOString(),
+};
+
+const defaultTelemetry: TelemetrySnapshot = {
+  speedMetersPerSecond: null,
+  speedKmh: null,
+  pitSpeedLimitMetersPerSecond: null,
+  onPitRoad: null,
+  isApproachingPits: null,
+  rpm: null,
+  gear: null,
+  fuelLevelLiters: null,
   timestamp: new Date().toISOString(),
 };
 
@@ -23,6 +36,7 @@ function App() {
     widgets: [],
   });
   const [weather, setWeather] = useState(defaultWeather);
+  const [telemetry, setTelemetry] = useState(defaultTelemetry);
 
   useEffect(() => {
     const webView = window.chrome?.webview;
@@ -41,10 +55,21 @@ function App() {
         setWeather(message.payload);
       }
 
+      if (message.type === 'telemetry') {
+        setTelemetry(message.payload);
+      }
+
       if (message.type === 'connection' && message.payload.state !== 'Connected') {
         setWeather((current) => ({
           ...current,
           trackWetness: 'Unknown',
+        }));
+        setTelemetry((current) => ({
+          ...current,
+          onPitRoad: false,
+          isApproachingPits: false,
+          speedMetersPerSecond: null,
+          speedKmh: null,
         }));
       }
     };
@@ -54,7 +79,10 @@ function App() {
     return () => webView.removeEventListener('message', handleMessage);
   }, []);
 
-  const renderContext = useMemo<WidgetRenderContext>(() => ({ weather }), [weather]);
+  const renderContext = useMemo<WidgetRenderContext>(
+    () => ({ weather, telemetry }),
+    [telemetry, weather],
+  );
 
   return (
     <main className="overlay-shell">

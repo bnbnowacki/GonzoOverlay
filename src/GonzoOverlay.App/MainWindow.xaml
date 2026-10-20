@@ -43,12 +43,19 @@
                    FontSize="16"
                    FontWeight="SemiBold" />
 
-        <CheckBox x:Name="WeatherWidgetCheckBox"
-                  Grid.Row="2"
-                  Content="Pogoda toru — wilgotność nawierzchni"
-                  Foreground="#27364D"
-                  FontSize="13"
-                  IsChecked="True" />
+        <StackPanel Grid.Row="2">
+            <CheckBox x:Name="WeatherWidgetCheckBox"
+                      Content="Pogoda toru — wilgotność nawierzchni"
+                      Foreground="#27364D"
+                      FontSize="13"
+                      IsChecked="True" />
+            <CheckBox x:Name="PitSpeedHelperWidgetCheckBox"
+                      Margin="0,10,0,0"
+                      Content="Pit Speed Helper"
+                      Foreground="#27364D"
+                      FontSize="13"
+                      IsChecked="False" />
+        </StackPanel>
 
         <TextBlock x:Name="StatusText"
                    Grid.Row="3"

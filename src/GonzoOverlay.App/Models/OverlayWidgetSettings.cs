@@ -3,6 +3,8 @@ namespace GonzoOverlay.App.Models;
 public static class OverlayWidgetIds
 {
     public const string Weather = "weather";
+
+    public const string PitSpeedHelper = "pitSpeedHelper";
 }
 
 public sealed class OverlayWidgetSettings
@@ -24,6 +26,16 @@ public sealed class OverlayWidgetSettings
         Id = OverlayWidgetIds.Weather,
         Enabled = true,
         Left = 24,
+        Top = 24,
+        Width = 240,
+        Height = 88
+    };
+
+    public static OverlayWidgetSettings CreatePitSpeedHelperDefault() => new()
+    {
+        Id = OverlayWidgetIds.PitSpeedHelper,
+        Enabled = false,
+        Left = 288,
         Top = 24,
         Width = 240,
         Height = 88

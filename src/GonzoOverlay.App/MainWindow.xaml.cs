@@ -37,13 +37,12 @@ public partial class MainWindow : Window
 
         _overlayWindow = overlay;
         overlay.Show();
-        Topmost = true;
-        Activate();
 
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         EditButton.IsEnabled = true;
         WeatherWidgetCheckBox.IsEnabled = false;
+        PitSpeedHelperWidgetCheckBox.IsEnabled = false;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay aktywny na monitorze konfiguratora.");
     }
@@ -61,6 +60,13 @@ public partial class MainWindow : Window
         }
 
         var editModeEnabled = !_overlayWindow.IsEditMode;
+
+        if (editModeEnabled)
+        {
+            Topmost = true;
+            Activate();
+        }
+
         _overlayWindow.SetEditMode(editModeEnabled);
 
         if (editModeEnabled)
@@ -70,6 +76,7 @@ public partial class MainWindow : Window
         }
         else
         {
+            Topmost = false;
             EditButton.Content = "Edit mode";
             UpdateStatus("Ustawienia widgetów zapisane.");
         }
@@ -103,6 +110,7 @@ public partial class MainWindow : Window
         StopButton.IsEnabled = false;
         EditButton.IsEnabled = false;
         WeatherWidgetCheckBox.IsEnabled = true;
+        PitSpeedHelperWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay zatrzymany.");
     }
@@ -125,6 +133,7 @@ public partial class MainWindow : Window
         StopButton.IsEnabled = false;
         EditButton.IsEnabled = false;
         WeatherWidgetCheckBox.IsEnabled = true;
+        PitSpeedHelperWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         Topmost = false;
         UpdateStatus("Overlay zatrzymany.");
@@ -152,6 +161,8 @@ public partial class MainWindow : Window
 
         WeatherWidgetCheckBox.IsChecked = settings.Widgets.Any(
             widget => widget.Id == OverlayWidgetIds.Weather && widget.Enabled);
+        PitSpeedHelperWidgetCheckBox.IsChecked = settings.Widgets.Any(
+            widget => widget.Id == OverlayWidgetIds.PitSpeedHelper && widget.Enabled);
     }
 
     private bool TryReadSettings(out OverlaySettings settings)
@@ -168,6 +179,16 @@ public partial class MainWindow : Window
         }
 
         weather.Enabled = WeatherWidgetCheckBox.IsChecked == true;
+        var pitSpeedHelper = widgets.FirstOrDefault(
+            widget => widget.Id == OverlayWidgetIds.PitSpeedHelper);
+
+        if (pitSpeedHelper is null)
+        {
+            pitSpeedHelper = OverlayWidgetSettings.CreatePitSpeedHelperDefault();
+            widgets.Add(pitSpeedHelper);
+        }
+
+        pitSpeedHelper.Enabled = PitSpeedHelperWidgetCheckBox.IsChecked == true;
         settings = new OverlaySettings
         {
             Widgets = widgets
