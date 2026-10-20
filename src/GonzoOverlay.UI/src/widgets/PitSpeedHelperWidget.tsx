@@ -21,6 +21,8 @@ export function PitSpeedHelperWidget({ snapshot }: PitSpeedHelperWidgetProps) {
   const consecutiveDecreasingSamplesRef = useRef(0);
   const brakingStartSpeedRef = useRef<number | null>(null);
   const modeRef = useRef<PitSpeedHelperMode>('hidden');
+  const wasApproachingPitsRef = useRef(false);
+  const enteredPitRoadRef = useRef(false);
   const [mode, setMode] = useState<PitSpeedHelperMode>('hidden');
   const [brakingStartSpeed, setBrakingStartSpeed] = useState<number | null>(null);
 
@@ -31,10 +33,29 @@ export function PitSpeedHelperWidget({ snapshot }: PitSpeedHelperWidgetProps) {
     const pitLimit = snapshot.pitSpeedLimitMetersPerSecond;
     const speedKmh = speed !== null ? speed * 3.6 : null;
     const isStopped = speedKmh !== null && speedKmh <= STOPPED_SPEED_THRESHOLD_KMH;
+    const startedApproachingPits = isApproachingPits && !wasApproachingPitsRef.current;
+
+    if (onPitRoad) {
+      enteredPitRoadRef.current = true;
+    }
+    wasApproachingPitsRef.current = isApproachingPits;
+
+    if (enteredPitRoadRef.current && !onPitRoad) {
+      modeRef.current = 'hidden';
+      setMode('hidden');
+      enteredPitRoadRef.current = false;
+      previousSpeedRef.current = null;
+      highestSpeedRef.current = null;
+      consecutiveDecreasingSamplesRef.current = 0;
+      brakingStartSpeedRef.current = null;
+      setBrakingStartSpeed(null);
+      return;
+    }
 
     if (!isApproachingPits && !onPitRoad) {
       modeRef.current = 'hidden';
       setMode('hidden');
+      enteredPitRoadRef.current = false;
       previousSpeedRef.current = null;
       highestSpeedRef.current = null;
       consecutiveDecreasingSamplesRef.current = 0;
@@ -82,7 +103,7 @@ export function PitSpeedHelperWidget({ snapshot }: PitSpeedHelperWidgetProps) {
       return;
     }
 
-    if (modeRef.current === 'hidden' && isApproachingPits) {
+    if (modeRef.current === 'hidden' && startedApproachingPits) {
       modeRef.current = 'prePitlane';
       setMode('prePitlane');
       previousSpeedRef.current = speed;
