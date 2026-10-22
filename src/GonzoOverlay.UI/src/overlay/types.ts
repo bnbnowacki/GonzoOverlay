@@ -1,6 +1,7 @@
 export const widgetIds = {
   weather: 'weather',
   pitSpeedHelper: 'pitSpeedHelper',
+  standings: 'standings',
 } as const;
 
 export type WidgetId = (typeof widgetIds)[keyof typeof widgetIds];
@@ -36,10 +37,30 @@ export type TelemetrySnapshot = {
   timestamp: string;
 };
 
+export type StandingEntry = {
+  position: number;
+  number: string;
+  driver: string;
+  car: string;
+  lastLapSeconds: number | null;
+  bestLapSeconds: number | null;
+  intervalSeconds: number | null;
+  leaderGapSeconds: number | null;
+  safetyRating: string;
+  iRating: number | null;
+};
+
+export type StandingsSnapshot = {
+  sessionType: string;
+  entries: StandingEntry[];
+  timestamp: string;
+};
+
 export type OverlayMessage =
   | { type: 'overlay.config'; payload: OverlayConfig }
   | { type: 'weather'; payload: WeatherSnapshot }
   | { type: 'connection'; payload: { state: string } }
-  | { type: 'telemetry'; payload: TelemetrySnapshot };
+  | { type: 'telemetry'; payload: TelemetrySnapshot }
+  | { type: 'standings'; payload: StandingsSnapshot };
 
 export type OverlayHostMessage = { type: 'overlay.ready' };

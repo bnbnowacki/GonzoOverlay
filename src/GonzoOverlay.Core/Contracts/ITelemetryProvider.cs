@@ -8,6 +8,8 @@ public interface ITelemetryProvider : IAsyncDisposable
 
     event Action<WeatherSnapshot>? WeatherUpdated;
 
+    event Action<StandingsSnapshot>? StandingsUpdated;
+
     event Action<string>? ConnectionStateChanged;
 
     event Action<Exception>? Error;

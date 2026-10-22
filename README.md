@@ -12,6 +12,25 @@ Widget pogodowy pokazuje aktualny stan nawierzchni toru odczytany z TrackWetness
 
 Widget ma własną pozycję i rozmiar, a jego tekst skaluje się razem z rozmiarem widgetu.
 
+### Standings
+
+Widget Standings pokazuje aktualną tabelę kierowców na podstawie danych z `SessionInfo` oraz tablic telemetrii `CarIdx`.
+
+Kolumny są ułożone następująco: pozycja, kierowca, numer, SR, iRating, samochód, INT, LEADER i czas okrążenia.
+
+Widget pokazuje nazwiska, numery startowe, pozycje, safety rating, iRating, samochód, interval do poprzedniej pozycji, stratę do lidera oraz czas okrążenia.
+
+W zależności od typu sesji ostatnia kolumna pokazuje:
+
+- w `Race` — czas poprzedniego okrążenia oraz rzeczywiste różnice czasowe na torze,
+- w `Practice` i `Qualify` — najlepsze okrążenie każdego kierowcy oraz różnice względem najlepszego czasu w tabeli.
+
+W sesjach innych niż race wartości `INT` i `LEADER` są porównaniem best lapów, a nie stratą wynikającą z różnicy pozycji na torze. Dane są budowane z całej aktualnej tabeli sesji, również gdy practice jest podzielone na grupy.
+
+Gdy kierowca poprawi swój best lap, jego komórka czasu pulsuje na zielono. Zielony kolor utrzymuje się przez około 10 sekund, a następnie wygasa przez około 3 sekundy.
+
+Czcionka tabeli jest ustawiona na stałe. Zmiana szerokości widgetu poszerza kolumny proporcjonalnie, natomiast zmiana wysokości może spowodować obcięcie dalszych wierszy.
+
 ### Pit Speed Helper
 
 Pit Speed Helper pomaga kontrolować prędkość podczas zjazdu do alei serwisowej. Widget korzysta z:
@@ -102,6 +121,21 @@ Po wyłączeniu Edit mode:
 
 Tryb edycji jest więc tylko natywną warstwą pomocniczą. Finalny overlay nadal składa się z jednego okna WebView2.
 
+## Wygląd widgetów
+
+Wspólny styling frontendu znajduje się w `src/GonzoOverlay.UI/src/styles.css`.
+
+Ogólny wygląd widgetów jest sterowany zmiennymi CSS w sekcji `:root`:
+
+```css
+--widget-background
+--widget-border
+--widget-shadow
+--widget-radius
+```
+
+Zmiana tych wartości wpływa na ciemne tło, obramowanie, cień i zaokrąglenie wszystkich obecnych widgetów. Style specyficzne dla danego widgetu, takie jak kolory paska Pit Speed Helper albo szerokości kolumn Standings, pozostają w osobnych klasach.
+
 ## Zapisywanie ustawień
 
 Ustawienia są przechowywane w:
@@ -136,8 +170,9 @@ Przepływ danych wygląda następująco:
 iRacing SDK
     ↓
 IracingTelemetryProvider
-    ↓
-TelemetrySnapshot / WeatherSnapshot
+    ├── TelemetrySnapshot
+    ├── WeatherSnapshot
+    └── StandingsSnapshot
     ↓
 OverlayWindow WPF
     ↓ WebView2 postMessage
@@ -146,7 +181,9 @@ React App
 WidgetRegistry → WidgetSlot → konkretny widget
 ~~~
 
-WidgetRegistry jest punktem wejścia dla widgetów po stronie Reacta. Konfiguracja zawiera listę widgetów wraz z ich identyfikatorem, statusem aktywności, pozycją i rozmiarem. WidgetSlot odpowiada za umieszczenie widgetu w zapisanym miejscu, a sam widget zajmuje się wyłącznie prezentacją i własną logiką.
+WidgetRegistry jest punktem wejścia dla widgetów po stronie Reacta. Konfiguracja zawiera listę widgetów wraz z ich identyfikatorem, statusem aktywności, pozycją i rozmiarem. WidgetSlot odpowiada za umieszczenie widgetu w zapisanym miejscu, a sam widget zajmuje się prezentacją i własną logiką.
+
+Po stronie iRacing `IracingTelemetryProvider` publikuje osobne aktualizacje telemetrii, pogody i standings. `OverlayWindow` tłumaczy je na komunikaty WebView2, a React aktualizuje tylko odpowiednie widgety.
 
 ## Dodawanie kolejnego widgetu
 

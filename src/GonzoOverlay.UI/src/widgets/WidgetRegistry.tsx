@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { WeatherWidget } from './WeatherWidget';
 import { PitSpeedHelperWidget } from './PitSpeedHelperWidget';
+import { StandingsWidget } from './StandingsWidget';
 import type { TelemetrySnapshot, WeatherSnapshot, WidgetId } from '../overlay/types';
 
 export type WidgetRenderContext = {
   weather: WeatherSnapshot;
   telemetry: TelemetrySnapshot;
+  standings: import('../overlay/types').StandingsSnapshot;
 };
 
 type WidgetDefinition = {
@@ -21,5 +23,9 @@ export const widgetRegistry: WidgetDefinition[] = [
   {
     id: 'pitSpeedHelper',
     render: ({ telemetry }) => <PitSpeedHelperWidget snapshot={telemetry} />,
+  },
+  {
+    id: 'standings',
+    render: ({ standings }) => <StandingsWidget snapshot={standings} />,
   },
 ];

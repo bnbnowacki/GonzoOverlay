@@ -5,6 +5,8 @@ public static class OverlayWidgetIds
     public const string Weather = "weather";
 
     public const string PitSpeedHelper = "pitSpeedHelper";
+
+    public const string Standings = "standings";
 }
 
 public sealed class OverlayWidgetSettings
@@ -39,5 +41,15 @@ public sealed class OverlayWidgetSettings
         Top = 24,
         Width = 240,
         Height = 88
+    };
+
+    public static OverlayWidgetSettings CreateStandingsDefault() => new()
+    {
+        Id = OverlayWidgetIds.Standings,
+        Enabled = true,
+        Left = 24,
+        Top = 130,
+        Width = 760,
+        Height = 230
     };
 }

@@ -3,6 +3,11 @@
   background: transparent;
   font-family: Inter, Segoe UI, sans-serif;
   font-synthesis: none;
+
+  --widget-background: rgba(17, 22, 32, 0.84);
+  --widget-border: rgba(97, 161, 255, 0.8);
+  --widget-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --widget-radius: 8px;
 }
 
 html,
@@ -39,6 +44,14 @@ button {
 }
 
 .weather-widget,
+.pit-speed-helper-widget,
+.standings-widget {
+  border: 1px solid var(--widget-border);
+  background: var(--widget-background);
+  box-shadow: var(--widget-shadow);
+}
+
+.weather-widget,
 .pit-speed-helper-widget {
   display: flex;
   align-items: center;
@@ -48,10 +61,7 @@ button {
   gap: clamp(2px, min(5cqw, 8cqh), 12px);
   padding: clamp(3px, min(6cqw, 10cqh), 10px)
     clamp(4px, 6cqw, 14px);
-  border: 1px solid rgba(97, 161, 255, 0.8);
-  border-radius: clamp(4px, 4cqw, 10px);
-  background: rgba(17, 22, 32, 0.84);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  border-radius: clamp(4px, 4cqw, var(--widget-radius));
   overflow: hidden;
 }
 
@@ -61,6 +71,116 @@ button {
   justify-content: center;
   gap: clamp(6px, 4cqw, 14px);
   padding: clamp(6px, 5cqw, 12px);
+}
+
+.standings-widget {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 8px 14px;
+  border-radius: var(--widget-radius);
+  overflow: hidden;
+}
+
+.standings-table-wrap {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #d7e3f2;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.standings-table td {
+  height: 28px;
+  padding: 4px 5px;
+  border-bottom: 1px solid rgba(142, 160, 184, 0.16);
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.standings-lap-pulse {
+  animation: standings-lap-best-pulse 13s ease-out;
+}
+
+@keyframes standings-lap-best-pulse {
+  0%,
+  77% {
+    background-color: rgba(34, 197, 94, 0.82);
+    color: #ffffff;
+  }
+
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+.standings-table td:nth-child(1) {
+  width: 6%;
+  text-align: center;
+}
+
+.standings-table td:nth-child(2) {
+  width: 19%;
+  text-align: left;
+}
+
+.standings-table td:nth-child(3) {
+  width: 6%;
+  text-align: center;
+}
+
+.standings-table td:nth-child(4) {
+  width: 8%;
+}
+
+.standings-table td:nth-child(5) {
+  width: 8%;
+}
+
+.standings-table td:nth-child(6) {
+  width: 16%;
+  text-align: left;
+}
+
+.standings-table td:nth-child(7) {
+  width: 12%;
+}
+
+.standings-table td:nth-child(8) {
+  width: 12%;
+}
+
+.standings-table td:nth-child(9) {
+  width: 13%;
+}
+
+.standings-position {
+  color: #fff;
+  font-weight: 800;
+}
+
+.standings-number {
+  color: #f8e66c;
+  font-weight: 700;
+}
+
+.standings-driver {
+  color: #fff;
+  font-weight: 700;
+}
+
+.standings-car {
+  color: #8ea0b8;
 }
 
 .pit-speed-helper-bar {

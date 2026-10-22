@@ -49,6 +49,7 @@ public partial class OverlayWindow : Window
             NullLogger<IracingTelemetryProvider>.Instance);
         _telemetryProvider.TelemetryUpdated += OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated += OnWeatherUpdated;
+        _telemetryProvider.StandingsUpdated += OnStandingsUpdated;
         _telemetryProvider.ConnectionStateChanged += OnConnectionStateChanged;
     }
 
@@ -103,6 +104,7 @@ public partial class OverlayWindow : Window
 
         _telemetryProvider.TelemetryUpdated -= OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated -= OnWeatherUpdated;
+        _telemetryProvider.StandingsUpdated -= OnStandingsUpdated;
         _telemetryProvider.ConnectionStateChanged -= OnConnectionStateChanged;
         await _telemetryProvider.DisposeAsync();
         _telemetryCancellation.Dispose();
@@ -424,6 +426,11 @@ public partial class OverlayWindow : Window
         PostMessage("weather", snapshot);
     }
 
+    private void OnStandingsUpdated(StandingsSnapshot snapshot)
+    {
+        PostMessage("standings", snapshot);
+    }
+
     private void OnConnectionStateChanged(string state)
     {
         PostMessage("connection", new { state });
@@ -462,6 +469,7 @@ public partial class OverlayWindow : Window
     {
         OverlayWidgetIds.Weather => "Pogoda toru",
         OverlayWidgetIds.PitSpeedHelper => "Pit Speed Helper",
+        OverlayWidgetIds.Standings => "Standings",
         _ => id
     };
 

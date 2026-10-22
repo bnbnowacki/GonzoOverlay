@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         EditButton.IsEnabled = true;
         WeatherWidgetCheckBox.IsEnabled = false;
         PitSpeedHelperWidgetCheckBox.IsEnabled = false;
+        StandingsWidgetCheckBox.IsEnabled = false;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay aktywny na monitorze konfiguratora.");
     }
@@ -111,6 +112,7 @@ public partial class MainWindow : Window
         EditButton.IsEnabled = false;
         WeatherWidgetCheckBox.IsEnabled = true;
         PitSpeedHelperWidgetCheckBox.IsEnabled = true;
+        StandingsWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay zatrzymany.");
     }
@@ -134,6 +136,7 @@ public partial class MainWindow : Window
         EditButton.IsEnabled = false;
         WeatherWidgetCheckBox.IsEnabled = true;
         PitSpeedHelperWidgetCheckBox.IsEnabled = true;
+        StandingsWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         Topmost = false;
         UpdateStatus("Overlay zatrzymany.");
@@ -163,6 +166,8 @@ public partial class MainWindow : Window
             widget => widget.Id == OverlayWidgetIds.Weather && widget.Enabled);
         PitSpeedHelperWidgetCheckBox.IsChecked = settings.Widgets.Any(
             widget => widget.Id == OverlayWidgetIds.PitSpeedHelper && widget.Enabled);
+        StandingsWidgetCheckBox.IsChecked = settings.Widgets.Any(
+            widget => widget.Id == OverlayWidgetIds.Standings && widget.Enabled);
     }
 
     private bool TryReadSettings(out OverlaySettings settings)
@@ -189,6 +194,16 @@ public partial class MainWindow : Window
         }
 
         pitSpeedHelper.Enabled = PitSpeedHelperWidgetCheckBox.IsChecked == true;
+        var standings = widgets.FirstOrDefault(
+            widget => widget.Id == OverlayWidgetIds.Standings);
+
+        if (standings is null)
+        {
+            standings = OverlayWidgetSettings.CreateStandingsDefault();
+            widgets.Add(standings);
+        }
+
+        standings.Enabled = StandingsWidgetCheckBox.IsChecked == true;
         settings = new OverlaySettings
         {
             Widgets = widgets

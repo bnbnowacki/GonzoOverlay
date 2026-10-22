@@ -5,6 +5,7 @@ public sealed class OverlaySettings
     public List<OverlayWidgetSettings> Widgets { get; set; } = new()
     {
         OverlayWidgetSettings.CreateWeatherDefault(),
-        OverlayWidgetSettings.CreatePitSpeedHelperDefault()
+        OverlayWidgetSettings.CreatePitSpeedHelperDefault(),
+        OverlayWidgetSettings.CreateStandingsDefault()
     };
 }

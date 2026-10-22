@@ -33,12 +33,14 @@ public sealed class OverlaySettingsStore
                     settings.Widgets = new()
                     {
                         OverlayWidgetSettings.CreateWeatherDefault(),
-                        OverlayWidgetSettings.CreatePitSpeedHelperDefault()
+                        OverlayWidgetSettings.CreatePitSpeedHelperDefault(),
+                        OverlayWidgetSettings.CreateStandingsDefault()
                     };
                 }
 
                 AddMissingWidget(settings, OverlayWidgetIds.Weather, OverlayWidgetSettings.CreateWeatherDefault);
                 AddMissingWidget(settings, OverlayWidgetIds.PitSpeedHelper, OverlayWidgetSettings.CreatePitSpeedHelperDefault);
+                AddMissingWidget(settings, OverlayWidgetIds.Standings, OverlayWidgetSettings.CreateStandingsDefault);
 
                 return settings;
             }
