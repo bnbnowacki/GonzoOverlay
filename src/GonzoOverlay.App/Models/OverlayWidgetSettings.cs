@@ -7,6 +7,8 @@ public static class OverlayWidgetIds
     public const string PitSpeedHelper = "pitSpeedHelper";
 
     public const string Standings = "standings";
+
+    public const string Relative = "relative";
 }
 
 public sealed class OverlayWidgetSettings
@@ -51,5 +53,15 @@ public sealed class OverlayWidgetSettings
         Top = 130,
         Width = 760,
         Height = 230
+    };
+
+    public static OverlayWidgetSettings CreateRelativeDefault() => new()
+    {
+        Id = OverlayWidgetIds.Relative,
+        Enabled = false,
+        Left = 24,
+        Top = 24,
+        Width = 360,
+        Height = 220
     };
 }

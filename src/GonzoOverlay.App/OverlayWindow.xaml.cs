@@ -50,6 +50,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.TelemetryUpdated += OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated += OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated += OnStandingsUpdated;
+        _telemetryProvider.RelativeUpdated += OnRelativeUpdated;
         _telemetryProvider.DebugLogUpdated += OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged += OnConnectionStateChanged;
     }
@@ -108,6 +109,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.TelemetryUpdated -= OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated -= OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated -= OnStandingsUpdated;
+        _telemetryProvider.RelativeUpdated -= OnRelativeUpdated;
         _telemetryProvider.DebugLogUpdated -= OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged -= OnConnectionStateChanged;
         await _telemetryProvider.DisposeAsync();
@@ -435,6 +437,11 @@ public partial class OverlayWindow : Window
         PostMessage("standings", snapshot);
     }
 
+    private void OnRelativeUpdated(RelativeSnapshot snapshot)
+    {
+        PostMessage("relative", snapshot);
+    }
+
     private void OnDebugLogUpdated(string line)
     {
         DebugLogUpdated?.Invoke(line);
@@ -479,6 +486,7 @@ public partial class OverlayWindow : Window
         OverlayWidgetIds.Weather => "Pogoda toru",
         OverlayWidgetIds.PitSpeedHelper => "Pit Speed Helper",
         OverlayWidgetIds.Standings => "Standings",
+        OverlayWidgetIds.Relative => "Relative",
         _ => id
     };
 

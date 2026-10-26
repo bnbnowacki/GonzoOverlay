@@ -6,6 +6,7 @@ public sealed class OverlaySettings
     {
         OverlayWidgetSettings.CreateWeatherDefault(),
         OverlayWidgetSettings.CreatePitSpeedHelperDefault(),
-        OverlayWidgetSettings.CreateStandingsDefault()
+        OverlayWidgetSettings.CreateStandingsDefault(),
+        OverlayWidgetSettings.CreateRelativeDefault()
     };
 }

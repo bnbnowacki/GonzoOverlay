@@ -10,6 +10,8 @@ public interface ITelemetryProvider : IAsyncDisposable
 
     event Action<StandingsSnapshot>? StandingsUpdated;
 
+    event Action<RelativeSnapshot>? RelativeUpdated;
+
     event Action<string>? ConnectionStateChanged;
 
     event Action<Exception>? Error;

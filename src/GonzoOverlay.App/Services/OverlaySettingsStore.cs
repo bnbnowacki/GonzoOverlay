@@ -34,13 +34,15 @@ public sealed class OverlaySettingsStore
                     {
                         OverlayWidgetSettings.CreateWeatherDefault(),
                         OverlayWidgetSettings.CreatePitSpeedHelperDefault(),
-                        OverlayWidgetSettings.CreateStandingsDefault()
+                        OverlayWidgetSettings.CreateStandingsDefault(),
+                        OverlayWidgetSettings.CreateRelativeDefault()
                     };
                 }
 
                 AddMissingWidget(settings, OverlayWidgetIds.Weather, OverlayWidgetSettings.CreateWeatherDefault);
                 AddMissingWidget(settings, OverlayWidgetIds.PitSpeedHelper, OverlayWidgetSettings.CreatePitSpeedHelperDefault);
                 AddMissingWidget(settings, OverlayWidgetIds.Standings, OverlayWidgetSettings.CreateStandingsDefault);
+                AddMissingWidget(settings, OverlayWidgetIds.Relative, OverlayWidgetSettings.CreateRelativeDefault);
 
                 return settings;
             }

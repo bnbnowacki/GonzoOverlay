@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import { WeatherWidget } from './WeatherWidget';
 import { PitSpeedHelperWidget } from './PitSpeedHelperWidget';
 import { StandingsWidget } from './StandingsWidget';
+import { RelativeWidget } from './RelativeWidget';
 import type { TelemetrySnapshot, WeatherSnapshot, WidgetId } from '../overlay/types';
 
 export type WidgetRenderContext = {
   weather: WeatherSnapshot;
   telemetry: TelemetrySnapshot;
   standings: import('../overlay/types').StandingsSnapshot;
+  relative: import('../overlay/types').RelativeSnapshot;
 };
 
 type WidgetDefinition = {
@@ -27,5 +29,9 @@ export const widgetRegistry: WidgetDefinition[] = [
   {
     id: 'standings',
     render: ({ standings }) => <StandingsWidget snapshot={standings} />,
+  },
+  {
+    id: 'relative',
+    render: ({ relative }) => <RelativeWidget snapshot={relative} />,
   },
 ];

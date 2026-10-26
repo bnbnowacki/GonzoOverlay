@@ -2,6 +2,7 @@ export const widgetIds = {
   weather: 'weather',
   pitSpeedHelper: 'pitSpeedHelper',
   standings: 'standings',
+  relative: 'relative',
 } as const;
 
 export type WidgetId = (typeof widgetIds)[keyof typeof widgetIds];
@@ -58,11 +59,26 @@ export type StandingsSnapshot = {
   timestamp: string;
 };
 
+export type RelativeEntry = {
+  position: number;
+  driver: string;
+  gapToPlayerSeconds: number | null;
+  isPlayer: boolean;
+  isOnPitRoad: boolean;
+};
+
+export type RelativeSnapshot = {
+  playerPosition: number;
+  entries: RelativeEntry[];
+  timestamp: string;
+};
+
 export type OverlayMessage =
   | { type: 'overlay.config'; payload: OverlayConfig }
   | { type: 'weather'; payload: WeatherSnapshot }
   | { type: 'connection'; payload: { state: string } }
   | { type: 'telemetry'; payload: TelemetrySnapshot }
-  | { type: 'standings'; payload: StandingsSnapshot };
+  | { type: 'standings'; payload: StandingsSnapshot }
+  | { type: 'relative'; payload: RelativeSnapshot };
 
 export type OverlayHostMessage = { type: 'overlay.ready' };

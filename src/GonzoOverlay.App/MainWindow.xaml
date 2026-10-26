@@ -61,6 +61,12 @@
                       Foreground="#27364D"
                       FontSize="13"
                       IsChecked="True" />
+            <CheckBox x:Name="RelativeWidgetCheckBox"
+                      Margin="0,10,0,0"
+                      Content="Relative"
+                      Foreground="#27364D"
+                      FontSize="13"
+                      IsChecked="False" />
         </StackPanel>
 
         <StackPanel Grid.Row="3"

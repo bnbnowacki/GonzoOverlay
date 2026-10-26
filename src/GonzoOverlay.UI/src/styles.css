@@ -45,7 +45,8 @@ button {
 
 .weather-widget,
 .pit-speed-helper-widget,
-.standings-widget {
+.standings-widget,
+.relative-widget {
   border: 1px solid var(--widget-border);
   background: var(--widget-background);
   box-shadow: var(--widget-shadow);
@@ -81,6 +82,72 @@ button {
   padding: 8px 14px;
   border-radius: var(--widget-radius);
   overflow: hidden;
+}
+
+.relative-widget {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: var(--widget-radius);
+  overflow: hidden;
+}
+
+.relative-table {
+  align-self: flex-start;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #d7e3f2;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.relative-table td {
+  height: 28px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(142, 160, 184, 0.16);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.relative-empty td {
+  color: transparent;
+}
+
+.relative-position {
+  width: 12%;
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+}
+
+.relative-driver {
+  width: 62%;
+  color: #fff;
+  font-weight: 700;
+}
+
+.relative-gap {
+  width: 26%;
+  color: #d7e3f2;
+  text-align: right;
+}
+
+.relative-player td {
+  background: rgba(97, 161, 255, 0.28);
+  color: #fff;
+  font-weight: 800;
+}
+
+.relative-pit td {
+  color: #8d98a8;
+}
+
+.relative-player .relative-driver {
+  color: #f8e66c;
 }
 
 .standings-table-wrap {

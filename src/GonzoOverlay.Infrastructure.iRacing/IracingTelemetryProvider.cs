@@ -18,6 +18,10 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.TrackWetness,
     TelemetryVar.CarIdxPosition,
     TelemetryVar.CarIdxF2Time,
+    TelemetryVar.CarIdxEstTime,
+    TelemetryVar.CarIdxLapDistPct,
+    TelemetryVar.CarIdxOnPitRoad,
+    TelemetryVar.PlayerCarIdx,
     TelemetryVar.CarIdxLastLapTime,
     TelemetryVar.CarIdxBestLapTime,
     TelemetryVar.CarIdxLap,
@@ -51,6 +55,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     public event Action<WeatherSnapshot>? WeatherUpdated;
 
     public event Action<StandingsSnapshot>? StandingsUpdated;
+
+    public event Action<RelativeSnapshot>? RelativeUpdated;
 
     public event Action<string>? DebugLogUpdated;
 
@@ -94,6 +100,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             snapshot.Timestamp));
                         PublishDebugLapUpdates(data, snapshot.Timestamp);
                         PublishStandings(BuildStandingsSnapshot(data, snapshot.Timestamp));
+                        PublishRelative(BuildRelativeSnapshot(data, snapshot.Timestamp));
                         return Task.CompletedTask;
                     },
                     OnSessionInfoUpdate = session =>
@@ -214,6 +221,19 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         catch (Exception exception)
         {
             _logger.LogError(exception, "Błąd odbiorcy standings");
+            PublishError(exception);
+        }
+    }
+
+    private void PublishRelative(RelativeSnapshot snapshot)
+    {
+        try
+        {
+            RelativeUpdated?.Invoke(snapshot);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Błąd odbiorcy relative");
             PublishError(exception);
         }
     }
@@ -391,6 +411,135 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         return new StandingsSnapshot(sessionType, withIntervals, timestamp);
     }
 
+    private RelativeSnapshot BuildRelativeSnapshot(TelemetryData data, DateTimeOffset timestamp)
+    {
+        var positions = ReadNumericArray(data.CarIdxPosition);
+        var estimatedTimesToPlayer = ReadNumericArray(data.CarIdxEstTime);
+        var lapDistances = ReadNumericArray(data.CarIdxLapDistPct);
+        var onPitRoad = ReadBooleanArray(data.CarIdxOnPitRoad);
+        var playerCarIdx = ReadInt(data.PlayerCarIdx) ?? -1;
+        var playerPosition = ReadPosition(positions, playerCarIdx);
+        var playerLapDistance = ReadArrayValue(lapDistances, playerCarIdx);
+        var playerEstimatedTime = ToFloat(ReadArrayValue(
+            estimatedTimesToPlayer,
+            playerCarIdx));
+        var playerClassEstLapTime = GetPlayerClassEstLapTime(playerCarIdx);
+
+        if (!playerEstimatedTime.HasValue || !playerLapDistance.HasValue)
+        {
+            return new RelativeSnapshot(
+                playerPosition,
+                Array.Empty<RelativeEntry>(),
+                timestamp);
+        }
+
+        var relativeEntries = _drivers.Values
+            .Select(driver =>
+            {
+                var position = ReadPosition(positions, driver.CarIdx);
+                var estimatedTime = ToFloat(ReadArrayValue(
+                    estimatedTimesToPlayer,
+                    driver.CarIdx));
+                var driverLapDistance = ReadArrayValue(lapDistances, driver.CarIdx);
+                var isOnPitRoad = ReadBooleanArrayValue(onPitRoad, driver.CarIdx) == true;
+                var isPlayer = driver.CarIdx == playerCarIdx;
+                var gap = isPlayer || !estimatedTime.HasValue ||
+                    !playerEstimatedTime.HasValue || !driverLapDistance.HasValue
+                    ? null
+                    : CalculateRelativeGap(
+                        playerEstimatedTime.Value,
+                        estimatedTime.Value,
+                        playerLapDistance.Value,
+                        driverLapDistance.Value,
+                        playerClassEstLapTime,
+                        driver.ClassEstLapTime);
+
+                return new RelativeEntry(
+                    position,
+                    driver.Driver,
+                    gap,
+                    isPlayer,
+                    isOnPitRoad);
+            })
+            .Where(entry => entry.IsPlayer || entry.GapToPlayerSeconds.HasValue)
+            .ToList();
+
+        var playerEntry = relativeEntries.FirstOrDefault(entry => entry.IsPlayer);
+        if (playerEntry is null)
+        {
+            return new RelativeSnapshot(playerPosition, Array.Empty<RelativeEntry>(), timestamp);
+        }
+
+        var ahead = relativeEntries
+            .Where(entry => entry.GapToPlayerSeconds > 0)
+            .OrderBy(entry => entry.GapToPlayerSeconds)
+            .Take(3)
+            .ToList();
+        var behind = relativeEntries
+            .Where(entry => entry.GapToPlayerSeconds < 0)
+            .OrderByDescending(entry => entry.GapToPlayerSeconds)
+            .Take(3)
+            .ToList();
+
+        var entries = ahead
+            .Append(playerEntry)
+            .Concat(behind)
+            .ToList();
+
+        return new RelativeSnapshot(playerPosition, entries, timestamp);
+    }
+
+    private float? GetPlayerClassEstLapTime(int playerCarIdx) =>
+        _drivers.TryGetValue(playerCarIdx, out var player)
+            ? player.ClassEstLapTime
+            : null;
+
+    private static float? CalculateRelativeGap(
+        float playerEstimatedTime,
+        float driverEstimatedTime,
+        double playerLapDistance,
+        double driverLapDistance,
+        float? playerClassEstLapTime,
+        float? driverClassEstLapTime)
+    {
+        if (playerLapDistance < 0 || playerLapDistance > 1 ||
+            driverLapDistance < 0 || driverLapDistance > 1)
+        {
+            return null;
+        }
+
+        var referenceLapTime = playerClassEstLapTime.HasValue &&
+            playerClassEstLapTime.Value > 0
+            ? playerClassEstLapTime.Value
+            : driverClassEstLapTime;
+        var driverTimeOnPlayerScale = driverEstimatedTime;
+        if (referenceLapTime.HasValue && referenceLapTime.Value > 0 &&
+            driverClassEstLapTime.HasValue && driverClassEstLapTime.Value > 0)
+        {
+            driverTimeOnPlayerScale = driverEstimatedTime *
+                referenceLapTime.Value / driverClassEstLapTime.Value;
+        }
+
+        var gap = driverTimeOnPlayerScale - playerEstimatedTime;
+        var crossesStartFinish = Math.Abs(driverLapDistance - playerLapDistance) > 0.5;
+        if (crossesStartFinish && referenceLapTime.HasValue && referenceLapTime.Value > 0)
+        {
+            gap += playerLapDistance > driverLapDistance
+                ? referenceLapTime.Value
+                : -referenceLapTime.Value;
+        }
+
+        return gap;
+    }
+
+    private static int ReadPosition(IReadOnlyList<double?> positions, int carIdx)
+    {
+        var position = ReadArrayValue(positions, carIdx);
+        return position.HasValue && position.Value > 0
+            ? (int)Math.Round(position.Value)
+            : 0;
+    }
+
     private static IReadOnlyList<StandingEntry> NormalizePracticeLeaderGaps(
         IReadOnlyList<StandingEntry> entries)
     {
@@ -430,7 +579,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                 ReadString(ReadProperty(driver, "CarScreenNameShort")) ??
                     ReadString(ReadProperty(driver, "CarScreenName")) ?? "Unknown",
                 ReadString(ReadProperty(driver, "LicString")) ?? "",
-                ReadInt(ReadProperty(driver, "IRating"))))
+                ReadInt(ReadProperty(driver, "IRating")),
+                ToFloat(ToDouble(ReadProperty(driver, "CarClassEstLapTime")))))
             .Where(driver => driver.CarIdx >= 0)
             .ToDictionary(driver => driver.CarIdx);
     }
@@ -469,6 +619,12 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private static double? ReadArrayValue(IReadOnlyList<double?> values, int index) =>
         index >= 0 && index < values.Count ? values[index] : null;
 
+    private static bool?[] ReadBooleanArray(object? value) =>
+        ReadItems(value).Select(item => ToBool(item)).ToArray();
+
+    private static bool? ReadBooleanArrayValue(IReadOnlyList<bool?> values, int index) =>
+        index >= 0 && index < values.Count ? values[index] : null;
+
     private static int? ReadInt(object? value)
     {
         var number = ToDouble(value);
@@ -476,6 +632,37 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     }
 
     private static float? ToFloat(double? value) => value.HasValue ? (float)value.Value : null;
+
+    private static bool? ToBool(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value is bool boolean)
+        {
+            return boolean;
+        }
+
+        if (value is IConvertible convertible)
+        {
+            try
+            {
+                return convertible.ToBoolean(CultureInfo.InvariantCulture);
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
+            catch (InvalidCastException)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
 
     private static double? ToDouble(object? value)
     {
@@ -511,7 +698,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         string Driver,
         string Car,
         string SafetyRating,
-        int? IRating);
+        int? IRating,
+        float? ClassEstLapTime);
 
     private void PublishConnectionState(string state)
     {

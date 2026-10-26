@@ -8,6 +8,7 @@ import type {
   TelemetrySnapshot,
   StandingsSnapshot,
   WeatherSnapshot,
+  RelativeSnapshot,
 } from './overlay/types';
 
 const defaultWeather: WeatherSnapshot = {
@@ -38,6 +39,20 @@ const defaultStandings: StandingsSnapshot = {
   timestamp: new Date().toISOString(),
 };
 
+const defaultRelative: RelativeSnapshot = {
+  playerPosition: 4,
+  entries: [
+    { position: 1, driver: 'Michael Hinkle', gapToPlayerSeconds: 2.184, isPlayer: false, isOnPitRoad: false },
+    { position: 2, driver: 'Drew Adamson', gapToPlayerSeconds: 1.102, isPlayer: false, isOnPitRoad: false },
+    { position: 3, driver: 'Cisco Scaramuzza', gapToPlayerSeconds: 0.421, isPlayer: false, isOnPitRoad: false },
+    { position: 4, driver: 'Gonzo Driver', gapToPlayerSeconds: null, isPlayer: true, isOnPitRoad: false },
+    { position: 5, driver: 'Tyler Hudson', gapToPlayerSeconds: 0.658, isPlayer: false, isOnPitRoad: false },
+    { position: 6, driver: 'Max Kearney', gapToPlayerSeconds: 1.227, isPlayer: false, isOnPitRoad: false },
+    { position: 7, driver: 'Nigel Pattinson', gapToPlayerSeconds: 2.901, isPlayer: false, isOnPitRoad: false },
+  ],
+  timestamp: new Date().toISOString(),
+};
+
 function postToHost(message: OverlayHostMessage) {
   window.chrome?.webview?.postMessage(message);
 }
@@ -50,6 +65,7 @@ function App() {
   const [weather, setWeather] = useState(defaultWeather);
   const [telemetry, setTelemetry] = useState(defaultTelemetry);
   const [standings, setStandings] = useState(defaultStandings);
+  const [relative, setRelative] = useState(defaultRelative);
 
   useEffect(() => {
     const webView = window.chrome?.webview;
@@ -76,6 +92,10 @@ function App() {
         setStandings(message.payload);
       }
 
+      if (message.type === 'relative') {
+        setRelative(message.payload);
+      }
+
       if (message.type === 'connection' && message.payload.state !== 'Connected') {
         setWeather((current) => ({
           ...current,
@@ -97,8 +117,8 @@ function App() {
   }, []);
 
   const renderContext = useMemo<WidgetRenderContext>(
-    () => ({ weather, telemetry, standings }),
-    [standings, telemetry, weather],
+    () => ({ weather, telemetry, standings, relative }),
+    [relative, standings, telemetry, weather],
   );
 
   return (
