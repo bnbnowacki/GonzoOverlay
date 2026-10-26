@@ -107,14 +107,39 @@ button {
   text-overflow: ellipsis;
 }
 
-.standings-lap-pulse {
-  animation: standings-lap-best-pulse 13s ease-out;
+.standings-lap-flash-green {
+  animation: standings-lap-flash-green 1.2s ease-out;
 }
 
-@keyframes standings-lap-best-pulse {
-  0%,
-  77% {
+.standings-lap-flash-purple {
+  animation: standings-lap-flash-purple 1.2s ease-out;
+}
+
+.standings-lap-personal-best {
+  background-color: rgba(34, 197, 94, 0.82);
+  color: #ffffff;
+}
+
+.standings-lap-server-best {
+  background-color: rgba(168, 85, 247, 0.86);
+  color: #ffffff;
+}
+
+@keyframes standings-lap-flash-green {
+  0% {
     background-color: rgba(34, 197, 94, 0.82);
+    color: #ffffff;
+  }
+
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+@keyframes standings-lap-flash-purple {
+  0% {
+    background-color: rgba(168, 85, 247, 0.86);
     color: #ffffff;
   }
 

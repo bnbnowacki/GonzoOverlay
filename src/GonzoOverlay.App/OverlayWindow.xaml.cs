@@ -50,6 +50,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.TelemetryUpdated += OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated += OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated += OnStandingsUpdated;
+        _telemetryProvider.DebugLogUpdated += OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged += OnConnectionStateChanged;
     }
 
@@ -58,6 +59,8 @@ public partial class OverlayWindow : Window
     public bool IsEditMode => _isEditMode;
 
     public event EventHandler? SettingsChanged;
+
+    public event Action<string>? DebugLogUpdated;
 
     public void SetEditMode(bool enabled)
     {
@@ -105,6 +108,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.TelemetryUpdated -= OnTelemetryUpdated;
         _telemetryProvider.WeatherUpdated -= OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated -= OnStandingsUpdated;
+        _telemetryProvider.DebugLogUpdated -= OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged -= OnConnectionStateChanged;
         await _telemetryProvider.DisposeAsync();
         _telemetryCancellation.Dispose();
@@ -429,6 +433,11 @@ public partial class OverlayWindow : Window
     private void OnStandingsUpdated(StandingsSnapshot snapshot)
     {
         PostMessage("standings", snapshot);
+    }
+
+    private void OnDebugLogUpdated(string line)
+    {
+        DebugLogUpdated?.Invoke(line);
     }
 
     private void OnConnectionStateChanged(string state)

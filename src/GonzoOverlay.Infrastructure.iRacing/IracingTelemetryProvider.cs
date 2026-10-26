@@ -20,6 +20,8 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.CarIdxF2Time,
     TelemetryVar.CarIdxLastLapTime,
     TelemetryVar.CarIdxBestLapTime,
+    TelemetryVar.CarIdxLap,
+    TelemetryVar.CarIdxLapCompleted,
     TelemetryVar.SessionNum])]
 internal static class IracingTelemetrySchema
 {
@@ -34,6 +36,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         new Dictionary<int, DriverMetadata>();
     private IReadOnlyDictionary<int, string> _sessionTypes =
         new Dictionary<int, string>();
+    private IReadOnlyList<double?>? _previousCarIdxLap;
+    private IReadOnlyList<double?>? _previousCarIdxLapCompleted;
+    private IReadOnlyList<double?>? _previousCarIdxLastLapTime;
+    private IReadOnlyList<double?>? _previousCarIdxBestLapTime;
 
     public IracingTelemetryProvider(ILogger<IracingTelemetryProvider> logger)
     {
@@ -45,6 +51,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     public event Action<WeatherSnapshot>? WeatherUpdated;
 
     public event Action<StandingsSnapshot>? StandingsUpdated;
+
+    public event Action<string>? DebugLogUpdated;
 
     public event Action<string>? ConnectionStateChanged;
 
@@ -84,6 +92,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         PublishWeather(new WeatherSnapshot(
                             data.TrackWetness?.ToString() ?? "Unknown",
                             snapshot.Timestamp));
+                        PublishDebugLapUpdates(data, snapshot.Timestamp);
                         PublishStandings(BuildStandingsSnapshot(data, snapshot.Timestamp));
                         return Task.CompletedTask;
                     },
@@ -213,6 +222,106 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     {
         _drivers = ReadDrivers(session);
         _sessionTypes = ReadSessionTypes(session);
+        _previousCarIdxLap = null;
+        _previousCarIdxLapCompleted = null;
+        _previousCarIdxLastLapTime = null;
+        _previousCarIdxBestLapTime = null;
+    }
+
+    private void PublishDebugLapUpdates(TelemetryData data, DateTimeOffset timestamp)
+    {
+        var carIdxLap = ReadNumericArray(data.CarIdxLap);
+        var carIdxLapCompleted = ReadNumericArray(data.CarIdxLapCompleted);
+        var carIdxLastLapTime = ReadNumericArray(data.CarIdxLastLapTime);
+        var carIdxBestLapTime = ReadNumericArray(data.CarIdxBestLapTime);
+
+        if (_previousCarIdxLap is null ||
+            _previousCarIdxLapCompleted is null ||
+            _previousCarIdxLastLapTime is null ||
+            _previousCarIdxBestLapTime is null)
+        {
+            _previousCarIdxLap = carIdxLap;
+            _previousCarIdxLapCompleted = carIdxLapCompleted;
+            _previousCarIdxLastLapTime = carIdxLastLapTime;
+            _previousCarIdxBestLapTime = carIdxBestLapTime;
+            return;
+        }
+
+        var carIndexes = _drivers.Count > 0
+            ? _drivers.Keys
+            : Enumerable.Range(0, Math.Max(
+                Math.Max(carIdxLap.Length, carIdxLapCompleted.Length),
+                Math.Max(carIdxLastLapTime.Length, carIdxBestLapTime.Length)));
+        var timestampText = timestamp.ToLocalTime().ToString("HH:mm:ss.fff");
+
+        foreach (var carIdx in carIndexes.OrderBy(index => index))
+        {
+            PublishDebugValueIfChanged(
+                timestampText,
+                "CarIdxLap",
+                carIdx,
+                ReadArrayValue(carIdxLap, carIdx),
+                ReadArrayValue(_previousCarIdxLap, carIdx));
+            PublishDebugValueIfChanged(
+                timestampText,
+                "CarIdxLapCompleted",
+                carIdx,
+                ReadArrayValue(carIdxLapCompleted, carIdx),
+                ReadArrayValue(_previousCarIdxLapCompleted, carIdx));
+            PublishDebugValueIfChanged(
+                timestampText,
+                "CarIdxLastLapTime",
+                carIdx,
+                ReadArrayValue(carIdxLastLapTime, carIdx),
+                ReadArrayValue(_previousCarIdxLastLapTime, carIdx));
+            PublishDebugValueIfChanged(
+                timestampText,
+                "CarIdxBestLapTime",
+                carIdx,
+                ReadArrayValue(carIdxBestLapTime, carIdx),
+                ReadArrayValue(_previousCarIdxBestLapTime, carIdx));
+        }
+
+        _previousCarIdxLap = carIdxLap;
+        _previousCarIdxLapCompleted = carIdxLapCompleted;
+        _previousCarIdxLastLapTime = carIdxLastLapTime;
+        _previousCarIdxBestLapTime = carIdxBestLapTime;
+    }
+
+    private void PublishDebugValueIfChanged(
+        string timestamp,
+        string variableName,
+        int carIdx,
+        double? current,
+        double? previous)
+    {
+        if (!HasDebugValueChanged(current, previous))
+        {
+            return;
+        }
+
+        var valueText = current?.ToString("0.000", CultureInfo.InvariantCulture) ?? "null";
+        try
+        {
+            DebugLogUpdated?.Invoke(
+                $"{timestamp} | {variableName} | {carIdx} | {valueText}");
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Błąd odbiorcy debug logu telemetrii");
+        }
+    }
+
+    private static bool HasDebugValueChanged(double? current, double? previous)
+    {
+        if (current.HasValue != previous.HasValue)
+        {
+            return true;
+        }
+
+        return current.HasValue &&
+            previous.HasValue &&
+            Math.Abs(current.Value - previous.Value) > 0.0005;
     }
 
     private StandingsSnapshot BuildStandingsSnapshot(TelemetryData data, DateTimeOffset timestamp)
@@ -221,6 +330,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var intervalsToLeader = ReadNumericArray(data.CarIdxF2Time);
         var lastLaps = ReadNumericArray(data.CarIdxLastLapTime);
         var bestLaps = ReadNumericArray(data.CarIdxBestLapTime);
+        var startedLaps = ReadNumericArray(data.CarIdxLap);
+        var completedLaps = ReadNumericArray(data.CarIdxLapCompleted);
         var sessionNumber = data.SessionNum ?? 0;
         var sessionType = _sessionTypes.TryGetValue(sessionNumber, out var value)
             ? value
@@ -248,6 +359,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     driver.Car,
                     ToFloat(ReadArrayValue(lastLaps, driver.CarIdx)),
                     bestLap,
+                    ReadInt(ReadArrayValue(completedLaps, driver.CarIdx)),
+                    ReadInt(ReadArrayValue(startedLaps, driver.CarIdx)),
                     null,
                     isRace ? f2Time : bestLap,
                     driver.SafetyRating,

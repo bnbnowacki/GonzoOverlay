@@ -44,6 +44,8 @@ export type StandingEntry = {
   car: string;
   lastLapSeconds: number | null;
   bestLapSeconds: number | null;
+  lapsCompleted: number | null;
+  lapsStarted: number | null;
   intervalSeconds: number | null;
   leaderGapSeconds: number | null;
   safetyRating: string;

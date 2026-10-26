@@ -63,12 +63,20 @@
                       IsChecked="True" />
         </StackPanel>
 
-        <TextBlock x:Name="StatusText"
-                   Grid.Row="3"
-                   Margin="0,24,0,18"
-                   Foreground="#667085"
-                   FontSize="12"
-                   TextWrapping="Wrap" />
+        <StackPanel Grid.Row="3"
+                    Margin="0,24,0,18">
+            <TextBlock x:Name="StatusText"
+                       Foreground="#667085"
+                       FontSize="12"
+                       TextWrapping="Wrap" />
+            <Button x:Name="DebugLogButton"
+                    Width="100"
+                    Height="28"
+                    Margin="0,12,0,0"
+                    HorizontalAlignment="Left"
+                    Content="Debug Log"
+                    Click="ToggleDebugLog_OnClick" />
+        </StackPanel>
 
         <StackPanel Grid.Row="4"
                     Orientation="Horizontal"

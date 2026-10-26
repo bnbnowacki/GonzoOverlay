@@ -7,8 +7,12 @@ namespace GonzoOverlay.App;
 public partial class MainWindow : Window
 {
     private readonly OverlaySettingsStore _settingsStore = new();
+    private readonly Queue<string> _debugLogLines = new();
     private OverlaySettings _currentSettings = new();
     private OverlayWindow? _overlayWindow;
+    private DebugLogWindow? _debugLogWindow;
+
+    private const int MaxDebugLogLines = 20000;
 
     public MainWindow()
     {
@@ -33,6 +37,7 @@ public partial class MainWindow : Window
             Owner = this
         };
         overlay.SettingsChanged += OverlayWindow_OnSettingsChanged;
+        overlay.DebugLogUpdated += OverlayWindow_OnDebugLogUpdated;
         overlay.Closed += OverlayWindow_OnClosed;
 
         _overlayWindow = overlay;
@@ -51,6 +56,25 @@ public partial class MainWindow : Window
     private void StopOverlay_OnClick(object sender, RoutedEventArgs e)
     {
         StopOverlay();
+    }
+
+    private void ToggleDebugLog_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_debugLogWindow is { IsVisible: true })
+        {
+            _debugLogWindow.Activate();
+            return;
+        }
+
+        var debugLogWindow = new DebugLogWindow
+        {
+            Owner = this
+        };
+        debugLogWindow.ClearRequested += DebugLogWindow_OnClearRequested;
+        debugLogWindow.Closed += DebugLogWindow_OnClosed;
+        _debugLogWindow = debugLogWindow;
+        debugLogWindow.SetLogText(GetDebugLogText());
+        debugLogWindow.Show();
     }
 
     private void ToggleEditMode_OnClick(object sender, RoutedEventArgs e)
@@ -86,6 +110,7 @@ public partial class MainWindow : Window
     private void MainWindow_OnClosed(object? sender, EventArgs e)
     {
         StopOverlay();
+        _debugLogWindow?.Close();
     }
 
     private void OverlayWindow_OnSettingsChanged(object? sender, EventArgs e)
@@ -104,6 +129,7 @@ public partial class MainWindow : Window
         }
 
         overlay.SettingsChanged -= OverlayWindow_OnSettingsChanged;
+        overlay.DebugLogUpdated -= OverlayWindow_OnDebugLogUpdated;
         SaveCurrentOverlaySettings();
         _overlayWindow = null;
         Topmost = false;
@@ -128,6 +154,7 @@ public partial class MainWindow : Window
         overlay.SetEditMode(false);
         SaveCurrentOverlaySettings();
         overlay.SettingsChanged -= OverlayWindow_OnSettingsChanged;
+        overlay.DebugLogUpdated -= OverlayWindow_OnDebugLogUpdated;
         _overlayWindow = null;
         overlay.Close();
 
@@ -224,5 +251,46 @@ public partial class MainWindow : Window
     private void UpdateStatus(string message)
     {
         StatusText.Text = message;
+    }
+
+    private void OverlayWindow_OnDebugLogUpdated(string line)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            _debugLogLines.Enqueue(line);
+            while (_debugLogLines.Count > MaxDebugLogLines)
+            {
+                _debugLogLines.Dequeue();
+            }
+
+            if (_debugLogWindow is { IsVisible: true })
+            {
+                _debugLogWindow?.SetLogText(GetDebugLogText());
+            }
+        });
+    }
+
+    private string GetDebugLogText()
+    {
+        return string.Join(Environment.NewLine, _debugLogLines);
+    }
+
+    private void DebugLogWindow_OnClearRequested(object? sender, EventArgs e)
+    {
+        _debugLogLines.Clear();
+        _debugLogWindow?.SetLogText(string.Empty);
+    }
+
+    private void DebugLogWindow_OnClosed(object? sender, EventArgs e)
+    {
+        if (sender is not DebugLogWindow debugLogWindow ||
+            !ReferenceEquals(debugLogWindow, _debugLogWindow))
+        {
+            return;
+        }
+
+        debugLogWindow.ClearRequested -= DebugLogWindow_OnClearRequested;
+        debugLogWindow.Closed -= DebugLogWindow_OnClosed;
+        _debugLogWindow = null;
     }
 }

@@ -30,10 +30,10 @@ const defaultTelemetry: TelemetrySnapshot = {
 const defaultStandings: StandingsSnapshot = {
   sessionType: 'Race',
   entries: [
-    { position: 1, number: '12', driver: 'Gonzo Driver', car: 'Porsche 992', lastLapSeconds: 108.302, bestLapSeconds: 108.302, intervalSeconds: null, leaderGapSeconds: null, safetyRating: 'A 3.42', iRating: 2400 },
-    { position: 2, number: '27', driver: 'Demo Racer', car: 'Ferrari 296', lastLapSeconds: 108.511, bestLapSeconds: 108.511, intervalSeconds: 0.842, leaderGapSeconds: 0.842, safetyRating: 'B 3.18', iRating: 3100 },
-    { position: 3, number: '84', driver: 'Sample Driver', car: 'BMW M4 GT3', lastLapSeconds: 109.006, bestLapSeconds: 109.006, intervalSeconds: 1.203, leaderGapSeconds: 2.045, safetyRating: 'A 4.01', iRating: 4800 },
-    { position: 4, number: '5', driver: 'Test Competitor', car: 'Mercedes AMG', lastLapSeconds: 109.32, bestLapSeconds: 109.32, intervalSeconds: 0.774, leaderGapSeconds: 2.819, safetyRating: 'C 2.77', iRating: 1900 },
+    { position: 1, number: '12', driver: 'Gonzo Driver', car: 'Porsche 992', lastLapSeconds: 108.302, bestLapSeconds: 108.302, lapsCompleted: 5, lapsStarted: 6, intervalSeconds: null, leaderGapSeconds: null, safetyRating: 'A 3.42', iRating: 2400 },
+    { position: 2, number: '27', driver: 'Demo Racer', car: 'Ferrari 296', lastLapSeconds: 108.511, bestLapSeconds: 108.511, lapsCompleted: 5, lapsStarted: 6, intervalSeconds: 0.842, leaderGapSeconds: 0.842, safetyRating: 'B 3.18', iRating: 3100 },
+    { position: 3, number: '84', driver: 'Sample Driver', car: 'BMW M4 GT3', lastLapSeconds: 109.006, bestLapSeconds: 109.006, lapsCompleted: 5, lapsStarted: 6, intervalSeconds: 1.203, leaderGapSeconds: 2.045, safetyRating: 'A 4.01', iRating: 4800 },
+    { position: 4, number: '5', driver: 'Test Competitor', car: 'Mercedes AMG', lastLapSeconds: 109.32, bestLapSeconds: 109.32, lapsCompleted: 5, lapsStarted: 6, intervalSeconds: 0.774, leaderGapSeconds: 2.819, safetyRating: 'C 2.77', iRating: 1900 },
   ],
   timestamp: new Date().toISOString(),
 };

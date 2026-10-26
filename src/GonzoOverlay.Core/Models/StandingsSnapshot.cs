@@ -12,6 +12,8 @@ public sealed record StandingEntry(
     string Car,
     float? LastLapSeconds,
     float? BestLapSeconds,
+    int? LapsCompleted,
+    int? LapsStarted,
     float? IntervalSeconds,
     float? LeaderGapSeconds,
     string SafetyRating,
