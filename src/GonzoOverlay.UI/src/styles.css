@@ -46,7 +46,8 @@ button {
 .weather-widget,
 .pit-speed-helper-widget,
 .standings-widget,
-.relative-widget {
+.relative-widget,
+.fuel-calculator-widget {
   border: 1px solid var(--widget-border);
   background: var(--widget-background);
   box-shadow: var(--widget-shadow);
@@ -82,6 +83,69 @@ button {
   padding: 8px 14px;
   border-radius: var(--widget-radius);
   overflow: hidden;
+}
+
+.fuel-calculator-widget {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--widget-radius);
+  overflow: hidden;
+}
+
+.fuel-calculator-current {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(142, 160, 184, 0.22);
+}
+
+.fuel-calculator-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fuel-calculator-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-left: 1px solid rgba(142, 160, 184, 0.22);
+}
+
+.fuel-calculator-cell:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.fuel-calculator-label {
+  overflow: hidden;
+  color: #8ea0b8;
+  font-size: clamp(7px, min(2.5cqw, 10cqh), 10px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fuel-calculator-widget strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(12px, min(5cqw, 22cqh), 20px);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .relative-widget {

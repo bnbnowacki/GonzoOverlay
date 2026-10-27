@@ -67,6 +67,12 @@
                       Foreground="#27364D"
                       FontSize="13"
                       IsChecked="False" />
+            <CheckBox x:Name="FuelCalculatorWidgetCheckBox"
+                      Margin="0,10,0,0"
+                      Content="Fuel Calculator"
+                      Foreground="#27364D"
+                      FontSize="13"
+                      IsChecked="False" />
         </StackPanel>
 
         <StackPanel Grid.Row="3"

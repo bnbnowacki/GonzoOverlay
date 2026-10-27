@@ -51,6 +51,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.WeatherUpdated += OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated += OnStandingsUpdated;
         _telemetryProvider.RelativeUpdated += OnRelativeUpdated;
+        _telemetryProvider.FuelUpdated += OnFuelUpdated;
         _telemetryProvider.DebugLogUpdated += OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged += OnConnectionStateChanged;
     }
@@ -110,6 +111,7 @@ public partial class OverlayWindow : Window
         _telemetryProvider.WeatherUpdated -= OnWeatherUpdated;
         _telemetryProvider.StandingsUpdated -= OnStandingsUpdated;
         _telemetryProvider.RelativeUpdated -= OnRelativeUpdated;
+        _telemetryProvider.FuelUpdated -= OnFuelUpdated;
         _telemetryProvider.DebugLogUpdated -= OnDebugLogUpdated;
         _telemetryProvider.ConnectionStateChanged -= OnConnectionStateChanged;
         await _telemetryProvider.DisposeAsync();
@@ -442,6 +444,11 @@ public partial class OverlayWindow : Window
         PostMessage("relative", snapshot);
     }
 
+    private void OnFuelUpdated(FuelSnapshot snapshot)
+    {
+        PostMessage("fuel", snapshot);
+    }
+
     private void OnDebugLogUpdated(string line)
     {
         DebugLogUpdated?.Invoke(line);
@@ -487,6 +494,7 @@ public partial class OverlayWindow : Window
         OverlayWidgetIds.PitSpeedHelper => "Pit Speed Helper",
         OverlayWidgetIds.Standings => "Standings",
         OverlayWidgetIds.Relative => "Relative",
+        OverlayWidgetIds.FuelCalculator => "Fuel Calculator",
         _ => id
     };
 

@@ -3,6 +3,7 @@ export const widgetIds = {
   pitSpeedHelper: 'pitSpeedHelper',
   standings: 'standings',
   relative: 'relative',
+  fuelCalculator: 'fuelCalculator',
 } as const;
 
 export type WidgetId = (typeof widgetIds)[keyof typeof widgetIds];
@@ -73,12 +74,22 @@ export type RelativeSnapshot = {
   timestamp: string;
 };
 
+export type FuelSnapshot = {
+  sessionType: string;
+  currentFuelLiters: number | null;
+  averageConsumptionPerLapLiters: number | null;
+  lapsOfFuelRemaining: number | null;
+  fuelToAddLiters: number | null;
+  timestamp: string;
+};
+
 export type OverlayMessage =
   | { type: 'overlay.config'; payload: OverlayConfig }
   | { type: 'weather'; payload: WeatherSnapshot }
   | { type: 'connection'; payload: { state: string } }
   | { type: 'telemetry'; payload: TelemetrySnapshot }
   | { type: 'standings'; payload: StandingsSnapshot }
-  | { type: 'relative'; payload: RelativeSnapshot };
+  | { type: 'relative'; payload: RelativeSnapshot }
+  | { type: 'fuel'; payload: FuelSnapshot };
 
 export type OverlayHostMessage = { type: 'overlay.ready' };

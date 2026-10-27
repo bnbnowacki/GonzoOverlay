@@ -3,6 +3,7 @@ import { WeatherWidget } from './WeatherWidget';
 import { PitSpeedHelperWidget } from './PitSpeedHelperWidget';
 import { StandingsWidget } from './StandingsWidget';
 import { RelativeWidget } from './RelativeWidget';
+import { FuelCalculatorWidget } from './FuelCalculatorWidget';
 import type { TelemetrySnapshot, WeatherSnapshot, WidgetId } from '../overlay/types';
 
 export type WidgetRenderContext = {
@@ -10,6 +11,7 @@ export type WidgetRenderContext = {
   telemetry: TelemetrySnapshot;
   standings: import('../overlay/types').StandingsSnapshot;
   relative: import('../overlay/types').RelativeSnapshot;
+  fuel: import('../overlay/types').FuelSnapshot;
 };
 
 type WidgetDefinition = {
@@ -33,5 +35,9 @@ export const widgetRegistry: WidgetDefinition[] = [
   {
     id: 'relative',
     render: ({ relative }) => <RelativeWidget snapshot={relative} />,
+  },
+  {
+    id: 'fuelCalculator',
+    render: ({ fuel }) => <FuelCalculatorWidget snapshot={fuel} />,
   },
 ];

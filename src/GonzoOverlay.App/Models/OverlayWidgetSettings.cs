@@ -9,6 +9,8 @@ public static class OverlayWidgetIds
     public const string Standings = "standings";
 
     public const string Relative = "relative";
+
+    public const string FuelCalculator = "fuelCalculator";
 }
 
 public sealed class OverlayWidgetSettings
@@ -63,5 +65,15 @@ public sealed class OverlayWidgetSettings
         Top = 24,
         Width = 360,
         Height = 220
+    };
+
+    public static OverlayWidgetSettings CreateFuelCalculatorDefault() => new()
+    {
+        Id = OverlayWidgetIds.FuelCalculator,
+        Enabled = false,
+        Left = 24,
+        Top = 380,
+        Width = 360,
+        Height = 84
     };
 }

@@ -50,6 +50,7 @@ public partial class MainWindow : Window
         PitSpeedHelperWidgetCheckBox.IsEnabled = false;
         StandingsWidgetCheckBox.IsEnabled = false;
         RelativeWidgetCheckBox.IsEnabled = false;
+        FuelCalculatorWidgetCheckBox.IsEnabled = false;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay aktywny na monitorze konfiguratora.");
     }
@@ -141,6 +142,7 @@ public partial class MainWindow : Window
         PitSpeedHelperWidgetCheckBox.IsEnabled = true;
         StandingsWidgetCheckBox.IsEnabled = true;
         RelativeWidgetCheckBox.IsEnabled = true;
+        FuelCalculatorWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         UpdateStatus("Overlay zatrzymany.");
     }
@@ -167,6 +169,7 @@ public partial class MainWindow : Window
         PitSpeedHelperWidgetCheckBox.IsEnabled = true;
         StandingsWidgetCheckBox.IsEnabled = true;
         RelativeWidgetCheckBox.IsEnabled = true;
+        FuelCalculatorWidgetCheckBox.IsEnabled = true;
         EditButton.Content = "Edit mode";
         Topmost = false;
         UpdateStatus("Overlay zatrzymany.");
@@ -200,6 +203,8 @@ public partial class MainWindow : Window
             widget => widget.Id == OverlayWidgetIds.Standings && widget.Enabled);
         RelativeWidgetCheckBox.IsChecked = settings.Widgets.Any(
             widget => widget.Id == OverlayWidgetIds.Relative && widget.Enabled);
+        FuelCalculatorWidgetCheckBox.IsChecked = settings.Widgets.Any(
+            widget => widget.Id == OverlayWidgetIds.FuelCalculator && widget.Enabled);
     }
 
     private bool TryReadSettings(out OverlaySettings settings)
@@ -246,6 +251,16 @@ public partial class MainWindow : Window
         }
 
         relative.Enabled = RelativeWidgetCheckBox.IsChecked == true;
+        var fuelCalculator = widgets.FirstOrDefault(
+            widget => widget.Id == OverlayWidgetIds.FuelCalculator);
+
+        if (fuelCalculator is null)
+        {
+            fuelCalculator = OverlayWidgetSettings.CreateFuelCalculatorDefault();
+            widgets.Add(fuelCalculator);
+        }
+
+        fuelCalculator.Enabled = FuelCalculatorWidgetCheckBox.IsChecked == true;
         settings = new OverlaySettings
         {
             Widgets = widgets

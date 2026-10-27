@@ -12,6 +12,8 @@ public interface ITelemetryProvider : IAsyncDisposable
 
     event Action<RelativeSnapshot>? RelativeUpdated;
 
+    event Action<FuelSnapshot>? FuelUpdated;
+
     event Action<string>? ConnectionStateChanged;
 
     event Action<Exception>? Error;

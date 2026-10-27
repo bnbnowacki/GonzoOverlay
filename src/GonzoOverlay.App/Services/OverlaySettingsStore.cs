@@ -43,6 +43,7 @@ public sealed class OverlaySettingsStore
                 AddMissingWidget(settings, OverlayWidgetIds.PitSpeedHelper, OverlayWidgetSettings.CreatePitSpeedHelperDefault);
                 AddMissingWidget(settings, OverlayWidgetIds.Standings, OverlayWidgetSettings.CreateStandingsDefault);
                 AddMissingWidget(settings, OverlayWidgetIds.Relative, OverlayWidgetSettings.CreateRelativeDefault);
+                AddMissingWidget(settings, OverlayWidgetIds.FuelCalculator, OverlayWidgetSettings.CreateFuelCalculatorDefault);
 
                 return settings;
             }

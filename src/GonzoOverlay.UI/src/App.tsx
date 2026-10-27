@@ -9,6 +9,7 @@ import type {
   StandingsSnapshot,
   WeatherSnapshot,
   RelativeSnapshot,
+  FuelSnapshot,
 } from './overlay/types';
 
 const defaultWeather: WeatherSnapshot = {
@@ -53,6 +54,15 @@ const defaultRelative: RelativeSnapshot = {
   timestamp: new Date().toISOString(),
 };
 
+const defaultFuel: FuelSnapshot = {
+  sessionType: 'Race',
+  currentFuelLiters: 42.6,
+  averageConsumptionPerLapLiters: 2.1,
+  lapsOfFuelRemaining: 20.29,
+  fuelToAddLiters: 0,
+  timestamp: new Date().toISOString(),
+};
+
 function postToHost(message: OverlayHostMessage) {
   window.chrome?.webview?.postMessage(message);
 }
@@ -66,6 +76,7 @@ function App() {
   const [telemetry, setTelemetry] = useState(defaultTelemetry);
   const [standings, setStandings] = useState(defaultStandings);
   const [relative, setRelative] = useState(defaultRelative);
+  const [fuel, setFuel] = useState(defaultFuel);
 
   useEffect(() => {
     const webView = window.chrome?.webview;
@@ -96,6 +107,10 @@ function App() {
         setRelative(message.payload);
       }
 
+      if (message.type === 'fuel') {
+        setFuel(message.payload);
+      }
+
       if (message.type === 'connection' && message.payload.state !== 'Connected') {
         setWeather((current) => ({
           ...current,
@@ -108,6 +123,14 @@ function App() {
           speedMetersPerSecond: null,
           speedKmh: null,
         }));
+        setFuel((current) => ({
+          ...current,
+          sessionType: 'Unknown',
+          currentFuelLiters: null,
+          averageConsumptionPerLapLiters: null,
+          lapsOfFuelRemaining: null,
+          fuelToAddLiters: null,
+        }));
       }
     };
 
@@ -117,8 +140,8 @@ function App() {
   }, []);
 
   const renderContext = useMemo<WidgetRenderContext>(
-    () => ({ weather, telemetry, standings, relative }),
-    [relative, standings, telemetry, weather],
+    () => ({ weather, telemetry, standings, relative, fuel }),
+    [fuel, relative, standings, telemetry, weather],
   );
 
   return (
