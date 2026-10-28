@@ -14,6 +14,13 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.Gear,
     TelemetryVar.FuelLevel,
     TelemetryVar.SessionLapsRemainEx,
+    TelemetryVar.SessionLapsTotal,
+    TelemetryVar.SessionUniqueID,
+    TelemetryVar.Lap,
+    TelemetryVar.SessionTimeRemain,
+    TelemetryVar.SessionTimeTotal,
+    TelemetryVar.SessionState,
+    TelemetryVar.SessionFlags,
     TelemetryVar.OnPitRoad,
     TelemetryVar.PlayerTrackSurface,
     TelemetryVar.TrackWetness,
@@ -36,6 +43,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
 {
     private readonly ILogger<IracingTelemetryProvider> _logger;
     private readonly CancellationTokenSource _disposeCancellation = new();
+    private readonly LeaderLapEstimator _leaderLapEstimator = new();
     private float? _pitSpeedLimitMetersPerSecond;
     private IReadOnlyDictionary<int, DriverMetadata> _drivers =
         new Dictionary<int, DriverMetadata>();
@@ -123,6 +131,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     },
                     OnConnectStateChanged = state =>
                     {
+                        if (!state.ToString().Equals("Connected", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _leaderLapEstimator.Reset();
+                        }
                         PublishConnectionState(state.ToString());
                         return Task.CompletedTask;
                     },
@@ -553,6 +565,30 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var estimatedTimesToPlayer = ReadNumericArray(data.CarIdxEstTime);
         var lapDistances = ReadNumericArray(data.CarIdxLapDistPct);
         var onPitRoad = ReadBooleanArray(data.CarIdxOnPitRoad);
+        var currentLap = ReadInt(data.Lap);
+        var sessionLapsTotal = ReadInt(data.SessionLapsTotal);
+        var sessionTimeRemainingSeconds = ToDouble(data.SessionTimeRemain);
+        var sessionTimeTotalSeconds = ToDouble(data.SessionTimeTotal);
+        var sessionNumber = ReadInt(data.SessionNum);
+        var isRace = sessionNumber.HasValue &&
+            _sessionTypes.TryGetValue(sessionNumber.Value, out var sessionType) &&
+            sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
+        // SDK session states 5/6 are checkered/cooldown; flag bit 0 is checkered.
+        var sessionState = ReadInt(data.SessionState);
+        var sessionFlags = ReadInt(data.SessionFlags);
+        var raceFinished = isRace &&
+            (sessionState is 5 or 6 || (sessionFlags.GetValueOrDefault() & 1) != 0);
+        var estimatedRaceLapsTotal = _leaderLapEstimator.Update(
+            sessionNumber,
+            ReadInt(data.SessionUniqueID),
+            isRace && !(sessionLapsTotal is > 0 and < 32767),
+            raceFinished,
+            positions,
+            ReadNumericArray(data.CarIdxLapCompleted),
+            ReadNumericArray(data.CarIdxLastLapTime),
+            onPitRoad,
+            sessionTimeRemainingSeconds,
+            timestamp);
         var playerCarIdx = ReadInt(data.PlayerCarIdx) ?? -1;
         var playerPosition = ReadPosition(positions, playerCarIdx);
         var playerLapDistance = ReadArrayValue(lapDistances, playerCarIdx);
@@ -566,6 +602,12 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             return new RelativeSnapshot(
                 playerPosition,
                 Array.Empty<RelativeEntry>(),
+                currentLap,
+                sessionLapsTotal,
+                estimatedRaceLapsTotal,
+                _leaderLapEstimator.IsFinished,
+                sessionTimeRemainingSeconds,
+                sessionTimeTotalSeconds,
                 timestamp);
         }
 
@@ -603,7 +645,16 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var playerEntry = relativeEntries.FirstOrDefault(entry => entry.IsPlayer);
         if (playerEntry is null)
         {
-            return new RelativeSnapshot(playerPosition, Array.Empty<RelativeEntry>(), timestamp);
+            return new RelativeSnapshot(
+                playerPosition,
+                Array.Empty<RelativeEntry>(),
+                currentLap,
+                sessionLapsTotal,
+                estimatedRaceLapsTotal,
+                _leaderLapEstimator.IsFinished,
+                sessionTimeRemainingSeconds,
+                sessionTimeTotalSeconds,
+                timestamp);
         }
 
         var ahead = relativeEntries
@@ -622,7 +673,16 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             .Concat(behind)
             .ToList();
 
-        return new RelativeSnapshot(playerPosition, entries, timestamp);
+        return new RelativeSnapshot(
+            playerPosition,
+            entries,
+            currentLap,
+            sessionLapsTotal,
+            estimatedRaceLapsTotal,
+            _leaderLapEstimator.IsFinished,
+            sessionTimeRemainingSeconds,
+            sessionTimeTotalSeconds,
+            timestamp);
     }
 
     private float? GetPlayerClassEstLapTime(int playerCarIdx) =>

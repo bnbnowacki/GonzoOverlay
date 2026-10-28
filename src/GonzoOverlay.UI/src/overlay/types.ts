@@ -71,6 +71,12 @@ export type RelativeEntry = {
 export type RelativeSnapshot = {
   playerPosition: number;
   entries: RelativeEntry[];
+  currentLap: number | null;
+  sessionLapsTotal: number | null;
+  estimatedRaceLapsTotal: number | null;
+  raceFinished: boolean;
+  sessionTimeRemainingSeconds: number | null;
+  sessionTimeTotalSeconds: number | null;
   timestamp: string;
 };
 

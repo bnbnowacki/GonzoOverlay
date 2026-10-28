@@ -163,6 +163,32 @@ Relative nie bierze pod uwagę liczby ukończonych okrążeń. Jeżeli kierowca 
 
 Kierowcy znajdujący się w pit lane są wyszarzeni. Nasze nazwisko jest zawsze złoto-żółte, również wtedy, gdy sami jesteśmy w pitach.
 
+#### Informacje o wyścigu
+
+Na dole widgetu wyświetlane są informacje o okrążeniach i czasie:
+
+- **Wyścig na okrążenia:** aktualne okrążenie i liczba okrążeń wyścigu, np. `5 / 10`.
+- **Wyścig na czas:** aktualne okrążenie i przewidywana liczba okrążeń, wskaźnik `+1 OKR` oraz pozostały i całkowity czas wyścigu.
+
+W wyścigu na czas długość wyścigu jest prognozą opartą na tempie lidera i pozostałym czasie. Overlay zbiera ostatnie okrążenia kierowców prowadzących wyścig i wylicza tempo z trzech najszybszych spośród maksymalnie pięciu zebranych okrążeń. Wykryte okrążenia z przejazdem przez pit lane są pomijane. Prognoza jest aktualizowana po przekroczeniu mety przez lidera.
+
+Przykładowy odczyt `OKRĄŻENIA 5 / 10` i `+1 OKR 30%` oznacza, że widget przewiduje około 10 pełnych okrążeń, a wskaźnik pokazuje, jak blisko granicy kolejnego lapu znajduje się prognoza. Kolor przechodzi od zielonego, przez żółty, do czerwonego. **Nie jest to dokładne prawdopodobieństwo**: tempo lidera może się zmienić, więc faktyczna długość wyścigu może być inna.
+
+Po uruchomieniu overlay potrzebuje co najmniej trzech odpowiednich okrążeń, aby pokazać prognozę. Do tego czasu pojawia się `--`. Po zakończeniu wyścigu ostatnia prognoza zostaje zachowana, a czas pokazuje `meta`. Aktualny numer okrążenia pochodzi z iRacing i po przejechaniu mety może już wskazywać kolejny numer, np. `11 / 10` po wyścigu trwającym 10 okrążeń.
+
+### Fuel Calculator
+
+Fuel Calculator pomaga obserwować zużycie paliwa i zasięg samochodu. Pokazuje cztery wartości:
+
+- **Aktualne paliwo** — ilość paliwa w baku, odświeżana na bieżąco.
+- **Średnie zużycie** — średnie spalanie na okrążenie z maksymalnie pięciu ostatnich zapisanych próbek, w litrach na lap.
+- **Pozostało** — szacowana liczba okrążeń możliwych do przejechania na aktualnym paliwie, przy dotychczasowym średnim zużyciu.
+- **Dolewka** — wstępne oszacowanie ilości paliwa potrzebnej do końca wyścigu, gdy dostępna jest liczba okrążeń pozostałych do mety.
+
+Średnie zużycie i zasięg są aktualizowane po przekroczeniu linii mety, dzięki czemu ich odczyt pozostaje stabilny podczas jazdy. Pierwsze zmierzone okrążenie jest pomijane; po tankowaniu historia zużycia jest zbierana ponownie. Gdy brakuje danych do obliczenia wartości, widget pokazuje `---`.
+
+`Dolewka` jest obecnie funkcją prototypową. W wyścigach na czas może pokazywać `---` i nie korzysta jeszcze z prognozy długości wyścigu w Relative. Obecne wyliczenie nie dodaje marginesu bezpieczeństwa, dlatego przed pit stopem warto sprawdzić strategię paliwową również w iRacing. Widget nie ustawia jeszcze automatycznie ilości paliwa do zatankowania.
+
 ## Układ i wygląd
 
 Wszystkie widgety mają spójny, ciemny wygląd z półprzezroczystym tłem i niebieskim obramowaniem.

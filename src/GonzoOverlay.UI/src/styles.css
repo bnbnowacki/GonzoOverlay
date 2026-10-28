@@ -152,13 +152,15 @@ button {
   display: flex;
   width: 100%;
   height: 100%;
-  align-items: flex-start;
+  flex-direction: column;
   padding: 8px 12px;
   border-radius: var(--widget-radius);
   overflow: hidden;
 }
 
 .relative-table {
+  min-height: 0;
+  flex: 1;
   align-self: flex-start;
   width: 100%;
   border-collapse: collapse;
@@ -170,8 +172,8 @@ button {
 }
 
 .relative-table td {
-  height: 28px;
-  padding: 4px 6px;
+  height: 24px;
+  padding: 3px 6px;
   border-bottom: 1px solid rgba(142, 160, 184, 0.16);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -212,6 +214,61 @@ button {
 
 .relative-player .relative-driver {
   color: #f8e66c;
+}
+
+.relative-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+  min-height: 24px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(142, 160, 184, 0.22);
+  color: #8ea0b8;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.relative-footer-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.relative-footer-lap-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.relative-footer-item span {
+  overflow: hidden;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+}
+
+.relative-footer-item strong {
+  color: #fff;
+  font-size: 12px;
+}
+
+.relative-footer-time {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.relative-footer-laps-only {
+  justify-content: flex-end;
+}
+
+.relative-footer-laps-only-item {
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .standings-table-wrap {

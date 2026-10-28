@@ -42,6 +42,12 @@ const defaultStandings: StandingsSnapshot = {
 
 const defaultRelative: RelativeSnapshot = {
   playerPosition: 4,
+  currentLap: 12,
+  sessionLapsTotal: 30,
+  estimatedRaceLapsTotal: null,
+  raceFinished: false,
+  sessionTimeRemainingSeconds: 2847,
+  sessionTimeTotalSeconds: 3600,
   entries: [
     { position: 1, driver: 'Michael Hinkle', gapToPlayerSeconds: 2.184, isPlayer: false, isOnPitRoad: false },
     { position: 2, driver: 'Drew Adamson', gapToPlayerSeconds: 1.102, isPlayer: false, isOnPitRoad: false },
