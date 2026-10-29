@@ -15,7 +15,8 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Telemetry debug log"
+        <TextBlock x:Name="LogHeading"
+                   Text="Telemetry debug log"
                    Foreground="#182235"
                    FontSize="18"
                    FontWeight="SemiBold" />

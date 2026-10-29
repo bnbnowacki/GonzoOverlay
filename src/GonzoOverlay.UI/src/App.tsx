@@ -66,6 +66,7 @@ const defaultFuel: FuelSnapshot = {
   averageConsumptionPerLapLiters: 2.1,
   lapsOfFuelRemaining: 20.29,
   fuelToAddLiters: 0,
+  fuelAtFinishLiters: 1.25,
   timestamp: new Date().toISOString(),
 };
 
@@ -136,6 +137,7 @@ function App() {
           averageConsumptionPerLapLiters: null,
           lapsOfFuelRemaining: null,
           fuelToAddLiters: null,
+          fuelAtFinishLiters: null,
         }));
       }
     };

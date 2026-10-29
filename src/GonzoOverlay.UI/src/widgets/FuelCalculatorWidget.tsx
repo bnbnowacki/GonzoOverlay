@@ -36,6 +36,10 @@ export function FuelCalculatorWidget({ snapshot }: FuelCalculatorWidgetProps) {
           <span className="fuel-calculator-label">DOLEWKA</span>
           <strong>{formatLiters(snapshot.fuelToAddLiters)}</strong>
         </div>
+        <div className="fuel-calculator-cell">
+          <span className="fuel-calculator-label">NA MECIE</span>
+          <strong>{formatLiters(snapshot.fuelAtFinishLiters)}</strong>
+        </div>
       </div>
     </section>
   );

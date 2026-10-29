@@ -9,6 +9,12 @@ public partial class DebugLogWindow : Window
         InitializeComponent();
     }
 
+    public void SetHeading(string title)
+    {
+        Title = $"GonzoOverlay — {title}";
+        LogHeading.Text = title;
+    }
+
     public event EventHandler? ClearRequested;
 
     public void SetLogText(string text)

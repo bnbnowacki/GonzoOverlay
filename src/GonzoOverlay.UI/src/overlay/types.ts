@@ -86,6 +86,7 @@ export type FuelSnapshot = {
   averageConsumptionPerLapLiters: number | null;
   lapsOfFuelRemaining: number | null;
   fuelToAddLiters: number | null;
+  fuelAtFinishLiters: number | null;
   timestamp: string;
 };
 

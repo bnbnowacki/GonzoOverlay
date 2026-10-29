@@ -13,7 +13,8 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.RPM,
     TelemetryVar.Gear,
     TelemetryVar.FuelLevel,
-    TelemetryVar.SessionLapsRemainEx,
+    TelemetryVar.PitSvFuel,
+    TelemetryVar.PitSvFlags,
     TelemetryVar.SessionLapsTotal,
     TelemetryVar.SessionUniqueID,
     TelemetryVar.Lap,
@@ -44,6 +45,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly ILogger<IracingTelemetryProvider> _logger;
     private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly LeaderLapEstimator _leaderLapEstimator = new();
+    private readonly FuelLapTracker _fuelLapTracker = new();
+    private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
+    private int? _fuelLogPreviousLap;
     private float? _pitSpeedLimitMetersPerSecond;
     private IReadOnlyDictionary<int, DriverMetadata> _drivers =
         new Dictionary<int, DriverMetadata>();
@@ -53,13 +57,6 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private IReadOnlyList<double?>? _previousCarIdxLapCompleted;
     private IReadOnlyList<double?>? _previousCarIdxLastLapTime;
     private IReadOnlyList<double?>? _previousCarIdxBestLapTime;
-    private int? _previousPlayerLapCompleted;
-    private float? _fuelAtPreviousCompletedLap;
-    private float? _previousObservedFuel;
-    private bool _skipNextLapAfterRefuel;
-    private bool _skipNextFuelConsumptionSample = true;
-    private float? _lapsOfFuelRemaining;
-    private readonly Queue<float> _recentLapFuelConsumption = new();
 
     public IracingTelemetryProvider(ILogger<IracingTelemetryProvider> logger)
     {
@@ -77,6 +74,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     public event Action<FuelSnapshot>? FuelUpdated;
 
     public event Action<string>? DebugLogUpdated;
+
+    public event Action<string>? FuelLogUpdated;
 
     public event Action<string>? ConnectionStateChanged;
 
@@ -118,8 +117,11 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             snapshot.Timestamp));
                         PublishDebugLapUpdates(data, snapshot.Timestamp);
                         PublishStandings(BuildStandingsSnapshot(data, snapshot.Timestamp));
-                        PublishRelative(BuildRelativeSnapshot(data, snapshot.Timestamp));
-                        PublishFuel(BuildFuelSnapshot(data, snapshot.Timestamp));
+                        var relative = BuildRelativeSnapshot(data, snapshot.Timestamp);
+                        PublishRelative(relative);
+                        var fuel = BuildFuelSnapshot(data, relative, snapshot.Timestamp);
+                        PublishFuel(fuel);
+                        PublishFuelLapLog(data, relative, fuel);
                         return Task.CompletedTask;
                     },
                     OnSessionInfoUpdate = session =>
@@ -134,6 +136,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         if (!state.ToString().Equals("Connected", StringComparison.OrdinalIgnoreCase))
                         {
                             _leaderLapEstimator.Reset();
+                            _fuelLapTracker.Reset();
+                            _fuelLogContext = null;
+                            _fuelLogPreviousLap = null;
                         }
                         PublishConnectionState(state.ToString());
                         return Task.CompletedTask;
@@ -274,7 +279,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         }
     }
 
-    private FuelSnapshot BuildFuelSnapshot(TelemetryData data, DateTimeOffset timestamp)
+    private FuelSnapshot BuildFuelSnapshot(
+        TelemetryData data,
+        RelativeSnapshot relative,
+        DateTimeOffset timestamp)
     {
         var sessionNumber = data.SessionNum ?? 0;
         var sessionType = _sessionTypes.TryGetValue(sessionNumber, out var value)
@@ -287,102 +295,84 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             ReadNumericArray(data.CarIdxLapCompleted),
             playerCarIdx));
 
-        if (_previousObservedFuel.HasValue && currentFuel.HasValue &&
-            currentFuel.Value > _previousObservedFuel.Value + 0.1f)
-        {
-            _recentLapFuelConsumption.Clear();
-            _skipNextLapAfterRefuel = true;
-            _lapsOfFuelRemaining = null;
-        }
-
-        var crossedFinishLine = completedLap.HasValue &&
-            _previousPlayerLapCompleted.HasValue &&
-            completedLap.Value > _previousPlayerLapCompleted.Value;
-        UpdateFuelHistory(completedLap, currentFuel);
-        _previousObservedFuel = currentFuel;
-
-        var averageConsumption = _recentLapFuelConsumption.Count > 0
-            ? _recentLapFuelConsumption.Average()
-            : (float?)null;
-        if (crossedFinishLine && averageConsumption is > 0 && currentFuel.HasValue)
-        {
-            _lapsOfFuelRemaining = MathF.Max(0, currentFuel.Value) / averageConsumption.Value;
-        }
-
-        var rawRaceLapsRemaining = isRace
-            ? ReadInt(data.SessionLapsRemainEx)
-            : null;
-        var raceLapsRemaining = rawRaceLapsRemaining is >= 0 and < 32767
-            ? rawRaceLapsRemaining
-            : null;
-
-        var fuelToAdd = isRace && averageConsumption.HasValue &&
-            currentFuel.HasValue && raceLapsRemaining.HasValue
-            ? MathF.Max(0, averageConsumption.Value * raceLapsRemaining.Value - currentFuel.Value)
-            : (float?)null;
+        _fuelLapTracker.Update(
+            ReadInt(data.SessionNum),
+            ReadInt(data.SessionUniqueID),
+            playerCarIdx >= 0 ? playerCarIdx : null,
+            completedLap,
+            currentFuel,
+            data.OnPitRoad,
+            isRace && !relative.RaceFinished,
+            relative.SessionLapsTotal,
+            relative.EstimatedRaceLapsTotal,
+            ReadInt(data.PitSvFlags),
+            ToFloat(ToDouble(data.PitSvFuel)));
 
         return new FuelSnapshot(
             sessionType,
             currentFuel,
-            averageConsumption,
-            _lapsOfFuelRemaining,
-            fuelToAdd,
+            _fuelLapTracker.AverageConsumption,
+            _fuelLapTracker.LapsOfFuelRemaining,
+            _fuelLapTracker.FuelToAdd,
+            _fuelLapTracker.FuelAtFinish,
             timestamp);
     }
 
-    private void UpdateFuelHistory(int? completedLap, float? currentFuel)
+    private void PublishFuelLapLog(TelemetryData data, RelativeSnapshot relative, FuelSnapshot fuel)
     {
-        if (!completedLap.HasValue || !currentFuel.HasValue)
+        var context = (ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), ReadInt(data.PlayerCarIdx));
+        if (_fuelLogContext != context)
+        {
+            _fuelLogContext = context;
+            _fuelLogPreviousLap = null;
+        }
+
+        var carIdx = context.Item3 ?? -1;
+        var completedLap = ReadInt(ReadArrayValue(ReadNumericArray(data.CarIdxLapCompleted), carIdx));
+        if (!completedLap.HasValue || completedLap.Value < 0)
         {
             return;
         }
 
-        if (!_previousPlayerLapCompleted.HasValue || !_fuelAtPreviousCompletedLap.HasValue)
+        var previousLap = _fuelLogPreviousLap;
+        _fuelLogPreviousLap = completedLap;
+        if (!previousLap.HasValue || completedLap.Value <= previousLap.Value)
         {
-            _previousPlayerLapCompleted = completedLap;
-            _fuelAtPreviousCompletedLap = currentFuel;
             return;
         }
 
-        if (completedLap.Value < _previousPlayerLapCompleted.Value)
+        var flags = ReadInt(data.PitSvFlags);
+        var plannedFuel = ToDouble(data.PitSvFuel);
+        var fuelSelected = flags.HasValue ? (flags.Value & 0x10) != 0 ? "TAK" : "NIE" : "brak";
+        var predictedLaps = relative.SessionLapsTotal is > 0 and < 32767
+            ? relative.SessionLapsTotal
+            : relative.EstimatedRaceLapsTotal is > 0 && double.IsFinite(relative.EstimatedRaceLapsTotal.Value)
+                ? (int?)((int)Math.Floor(relative.EstimatedRaceLapsTotal.Value) + 1)
+                : null;
+        static string Number(double? value) => value.HasValue && double.IsFinite(value.Value)
+            ? value.Value.ToString("0.000", CultureInfo.InvariantCulture)
+            : "brak";
+
+        var line = $"{fuel.Timestamp.ToLocalTime():HH:mm:ss.fff} | sesja={fuel.SessionType} ({context.Item1}/{context.Item2})" +
+            $" | auto={carIdx} | ukończone={completedLap} | aktualny_lap={relative.CurrentLap?.ToString() ?? "brak"}" +
+            $" | paliwo={Number(fuel.CurrentFuelLiters)} L | średnie={Number(fuel.AverageConsumptionPerLapLiters)} L/lap" +
+            $" | paliwo_baza={Number(_fuelLapTracker.StrategyFuelAtLine)} L | dolane_od_mety={Number(_fuelLapTracker.FuelAddedSinceLine)} L" +
+            $" | próbki_spalania={_fuelLapTracker.CleanSampleCount}/5 | zbieranie_po_picie={_fuelLapTracker.RebuildingAfterPit}" +
+            $" | zasięg={Number(fuel.LapsOfFuelRemaining)} lap | dystans_wyścigu={predictedLaps?.ToString() ?? "brak"} lap" +
+            $" | prognoza_surowa={Number(relative.EstimatedRaceLapsTotal)} | czas_pozostały={Number(relative.SessionTimeRemainingSeconds)} s" +
+            $" | pit_road={data.OnPitRoad?.ToString() ?? "brak"} | tankowanie_zaznaczone={fuelSelected}" +
+            $" | pit_flags={flags?.ToString() ?? "brak"} | ustawiona_dolewka={Number(plannedFuel)} L" +
+            $" | dolewka={Number(fuel.FuelToAddLiters)} L (po_lapie={_fuelLapTracker.FuelToAddSnapshotLap?.ToString() ?? "brak"})" +
+            $" | na_mecie={Number(fuel.FuelAtFinishLiters)} L (po_lapie={_fuelLapTracker.FuelAtFinishSnapshotLap?.ToString() ?? "brak"})" +
+            $" | meta={relative.RaceFinished}";
+
+        try
         {
-            _recentLapFuelConsumption.Clear();
-            _previousPlayerLapCompleted = completedLap;
-            _fuelAtPreviousCompletedLap = currentFuel;
-            _skipNextLapAfterRefuel = false;
-            _skipNextFuelConsumptionSample = true;
-            _lapsOfFuelRemaining = null;
-            return;
+            FuelLogUpdated?.Invoke(line);
         }
-
-        if (completedLap.Value > _previousPlayerLapCompleted.Value)
+        catch (Exception exception)
         {
-            if (_skipNextLapAfterRefuel || _skipNextFuelConsumptionSample)
-            {
-                _previousPlayerLapCompleted = completedLap;
-                _fuelAtPreviousCompletedLap = currentFuel;
-                _skipNextLapAfterRefuel = false;
-                _skipNextFuelConsumptionSample = false;
-                return;
-            }
-
-            var fuelChange = _fuelAtPreviousCompletedLap.Value - currentFuel.Value;
-            if (fuelChange > 0.01f)
-            {
-                _recentLapFuelConsumption.Enqueue(fuelChange);
-                while (_recentLapFuelConsumption.Count > 5)
-                {
-                    _recentLapFuelConsumption.Dequeue();
-                }
-            }
-            else if (fuelChange < -0.01f)
-            {
-                // Refuelling invalidates the comparison with the previous lap.
-                _recentLapFuelConsumption.Clear();
-            }
-
-            _previousPlayerLapCompleted = completedLap;
-            _fuelAtPreviousCompletedLap = currentFuel;
+            _logger.LogError(exception, "Błąd odbiorcy logu paliwa");
         }
     }
 

@@ -8,9 +8,11 @@ public partial class MainWindow : Window
 {
     private readonly OverlaySettingsStore _settingsStore = new();
     private readonly Queue<string> _debugLogLines = new();
+    private readonly Queue<string> _fuelLogLines = new();
     private OverlaySettings _currentSettings = new();
     private OverlayWindow? _overlayWindow;
     private DebugLogWindow? _debugLogWindow;
+    private DebugLogWindow? _fuelLogWindow;
 
     private const int MaxDebugLogLines = 20000;
 
@@ -38,6 +40,7 @@ public partial class MainWindow : Window
         };
         overlay.SettingsChanged += OverlayWindow_OnSettingsChanged;
         overlay.DebugLogUpdated += OverlayWindow_OnDebugLogUpdated;
+        overlay.FuelLogUpdated += OverlayWindow_OnFuelLogUpdated;
         overlay.Closed += OverlayWindow_OnClosed;
 
         _overlayWindow = overlay;
@@ -109,10 +112,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void FuelLog_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_fuelLogWindow is { IsVisible: true })
+        {
+            _fuelLogWindow.Activate();
+            return;
+        }
+
+        var window = new DebugLogWindow { Owner = this };
+        window.SetHeading("Log paliwa");
+        window.ClearRequested += FuelLogWindow_OnClearRequested;
+        window.Closed += FuelLogWindow_OnClosed;
+        _fuelLogWindow = window;
+        window.SetLogText(string.Join(Environment.NewLine, _fuelLogLines));
+        window.Show();
+    }
+
     private void MainWindow_OnClosed(object? sender, EventArgs e)
     {
         StopOverlay();
         _debugLogWindow?.Close();
+        _fuelLogWindow?.Close();
     }
 
     private void OverlayWindow_OnSettingsChanged(object? sender, EventArgs e)
@@ -132,6 +153,7 @@ public partial class MainWindow : Window
 
         overlay.SettingsChanged -= OverlayWindow_OnSettingsChanged;
         overlay.DebugLogUpdated -= OverlayWindow_OnDebugLogUpdated;
+        overlay.FuelLogUpdated -= OverlayWindow_OnFuelLogUpdated;
         SaveCurrentOverlaySettings();
         _overlayWindow = null;
         Topmost = false;
@@ -159,6 +181,7 @@ public partial class MainWindow : Window
         SaveCurrentOverlaySettings();
         overlay.SettingsChanged -= OverlayWindow_OnSettingsChanged;
         overlay.DebugLogUpdated -= OverlayWindow_OnDebugLogUpdated;
+        overlay.FuelLogUpdated -= OverlayWindow_OnFuelLogUpdated;
         _overlayWindow = null;
         overlay.Close();
 
@@ -298,6 +321,41 @@ public partial class MainWindow : Window
                 _debugLogWindow?.SetLogText(GetDebugLogText());
             }
         });
+    }
+
+    private void OverlayWindow_OnFuelLogUpdated(string line)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            _fuelLogLines.Enqueue(line);
+            while (_fuelLogLines.Count > MaxDebugLogLines)
+            {
+                _fuelLogLines.Dequeue();
+            }
+
+            if (_fuelLogWindow is { IsVisible: true })
+            {
+                _fuelLogWindow.SetLogText(string.Join(Environment.NewLine, _fuelLogLines));
+            }
+        });
+    }
+
+    private void FuelLogWindow_OnClearRequested(object? sender, EventArgs e)
+    {
+        _fuelLogLines.Clear();
+        _fuelLogWindow?.SetLogText(string.Empty);
+    }
+
+    private void FuelLogWindow_OnClosed(object? sender, EventArgs e)
+    {
+        if (sender is not DebugLogWindow window || !ReferenceEquals(window, _fuelLogWindow))
+        {
+            return;
+        }
+
+        window.ClearRequested -= FuelLogWindow_OnClearRequested;
+        window.Closed -= FuelLogWindow_OnClosed;
+        _fuelLogWindow = null;
     }
 
     private string GetDebugLogText()

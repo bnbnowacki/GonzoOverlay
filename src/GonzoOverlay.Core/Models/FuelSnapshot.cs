@@ -6,4 +6,5 @@ public sealed record FuelSnapshot(
     float? AverageConsumptionPerLapLiters,
     float? LapsOfFuelRemaining,
     float? FuelToAddLiters,
+    float? FuelAtFinishLiters,
     DateTimeOffset Timestamp);
