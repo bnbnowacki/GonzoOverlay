@@ -68,6 +68,7 @@ export type RelativeEntry = {
   gapToPlayerSeconds: number | null;
   isPlayer: boolean;
   isOnPitRoad: boolean;
+  lapRelation: 'same' | 'ahead' | 'behind' | 'unknown';
 };
 
 export type RelativeSnapshot = {

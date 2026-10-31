@@ -156,3 +156,16 @@ Check(standingsGaps.UpdateDriver(2, 0, 0).Leader is null, "new session resets ol
 standingsGaps.BeginSession(2, 100, false);
 Check(standingsGaps.UpdateDriver(2, 1, 2) == new StandingsLapGaps(null, null), "no lap gap outside race");
 Console.WriteLine("Standings lap gap smoke checks passed.");
+
+Check(RelativeLapRelation.Calculate(5, 5, 0.10, 0.85, -10) == "ahead", "same lap, driver far ahead wraps behind");
+Check(RelativeLapRelation.Calculate(5, 5, 0.85, 0.10, 10) == "behind", "same lap, driver far behind wraps ahead");
+Check(RelativeLapRelation.Calculate(5, 6, 0.99, 0.01, 1) == "same", "driver crosses start line first");
+Check(RelativeLapRelation.Calculate(6, 5, 0.01, 0.99, -1) == "same", "player crosses start line first");
+Check(RelativeLapRelation.Calculate(5, 6, 0.40, 0.45, 1) == "ahead", "driver ahead by a lap");
+Check(RelativeLapRelation.Calculate(6, 5, 0.45, 0.40, -1) == "behind", "driver behind by a lap");
+Check(RelativeLapRelation.Calculate(5, 7, 0.40, 0.45, 1) == "ahead", "driver ahead by multiple laps");
+Check(RelativeLapRelation.Calculate(5, 5, 0.40, 0.45, 1) == "same", "same-lap car ahead");
+Check(RelativeLapRelation.Calculate(5, 5, 0.40, 0.35, -1) == "same", "same-lap car behind");
+Check(RelativeLapRelation.Calculate(null, 5, 0.40, 0.35, -1) == "unknown", "missing lap count");
+Check(RelativeLapRelation.Calculate(5, 5, -1, 0.35, -1) == "unknown", "invalid track progress");
+Console.WriteLine("Relative lap relation checks passed.");

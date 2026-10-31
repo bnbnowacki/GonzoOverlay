@@ -212,6 +212,22 @@ button {
   color: #8d98a8;
 }
 
+.relative-driver.relative-driver-lapping {
+  color: #ff6868;
+}
+
+.relative-driver.relative-driver-lapped {
+  color: #68b5ff;
+}
+
+.relative-pit .relative-driver.relative-driver-lapping {
+  color: #a57278;
+}
+
+.relative-pit .relative-driver.relative-driver-lapped {
+  color: #6f8fa9;
+}
+
 .relative-player .relative-driver {
   color: #f8e66c;
 }

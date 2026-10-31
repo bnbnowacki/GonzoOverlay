@@ -575,6 +575,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var positions = ReadNumericArray(data.CarIdxPosition);
         var estimatedTimesToPlayer = ReadNumericArray(data.CarIdxEstTime);
         var lapDistances = ReadNumericArray(data.CarIdxLapDistPct);
+        var completedLaps = ReadNumericArray(data.CarIdxLapCompleted);
         var onPitRoad = ReadBooleanArray(data.CarIdxOnPitRoad);
         var currentLap = ReadInt(data.Lap);
         var sessionLapsTotal = ReadInt(data.SessionLapsTotal);
@@ -595,7 +596,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             isRace && !(sessionLapsTotal is > 0 and < 32767),
             raceFinished,
             positions,
-            ReadNumericArray(data.CarIdxLapCompleted),
+            completedLaps,
             ReadNumericArray(data.CarIdxLastLapTime),
             onPitRoad,
             sessionTimeRemainingSeconds,
@@ -603,6 +604,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var playerCarIdx = ReadInt(data.PlayerCarIdx) ?? -1;
         var playerPosition = ReadPosition(positions, playerCarIdx);
         var playerLapDistance = ReadArrayValue(lapDistances, playerCarIdx);
+        var playerCompletedLaps = ReadArrayValue(completedLaps, playerCarIdx);
         var playerEstimatedTime = ToFloat(ReadArrayValue(
             estimatedTimesToPlayer,
             playerCarIdx));
@@ -648,7 +650,13 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     driver.Driver,
                     gap,
                     isPlayer,
-                    isOnPitRoad);
+                    isOnPitRoad,
+                    isPlayer ? "same" : RelativeLapRelation.Calculate(
+                        playerCompletedLaps,
+                        ReadArrayValue(completedLaps, driver.CarIdx),
+                        playerLapDistance,
+                        driverLapDistance,
+                        gap));
             })
             .Where(entry => entry.IsPlayer || entry.GapToPlayerSeconds.HasValue)
             .ToList();

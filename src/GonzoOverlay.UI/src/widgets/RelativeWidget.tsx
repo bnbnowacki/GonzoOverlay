@@ -109,7 +109,11 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
                 <td className="relative-position">
                   {formatPosition(entry.position, entry.isPlayer)}
                 </td>
-                <td className="relative-driver">{entry.driver}</td>
+                <td className={[
+                  'relative-driver',
+                  !entry.isPlayer && entry.lapRelation === 'ahead' ? 'relative-driver-lapping' : '',
+                  !entry.isPlayer && entry.lapRelation === 'behind' ? 'relative-driver-lapped' : '',
+                ].filter(Boolean).join(' ')}>{entry.driver}</td>
                 <td className="relative-gap">
                   {formatGap(entry.gapToPlayerSeconds, entry.isPlayer)}
                 </td>

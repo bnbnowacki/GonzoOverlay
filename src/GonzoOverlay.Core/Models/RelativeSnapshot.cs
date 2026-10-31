@@ -16,4 +16,5 @@ public sealed record RelativeEntry(
     string Driver,
     float? GapToPlayerSeconds,
     bool IsPlayer,
-    bool IsOnPitRoad);
+    bool IsOnPitRoad,
+    string LapRelation);
