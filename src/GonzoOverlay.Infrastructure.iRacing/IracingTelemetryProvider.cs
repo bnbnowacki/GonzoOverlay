@@ -46,6 +46,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly LeaderLapEstimator _leaderLapEstimator = new();
     private readonly FuelLapTracker _fuelLapTracker = new();
+    private readonly StandingsLapGap _standingsLapGap = new();
     private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
     private int? _fuelLogPreviousLap;
     private float? _pitSpeedLimitMetersPerSecond;
@@ -137,6 +138,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         {
                             _leaderLapEstimator.Reset();
                             _fuelLapTracker.Reset();
+                            _standingsLapGap.Reset();
                             _fuelLogContext = null;
                             _fuelLogPreviousLap = null;
                         }
@@ -495,13 +497,30 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             ? value
             : "Unknown";
         var isRace = sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
+        _standingsLapGap.BeginSession(ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), isRace);
+        var leader = isRace
+            ? _drivers.Values.FirstOrDefault(driver => ReadArrayValue(positions, driver.CarIdx) == 1)
+            : null;
+        var leaderCompleted = leader is null ? null : ReadArrayValue(completedLaps, leader.CarIdx);
 
-        var entries = _drivers.Values
-            .Select(driver =>
+        var orderedDrivers = _drivers.Values
+            .Where(driver => ReadArrayValue(positions, driver.CarIdx) > 0)
+            .OrderBy(driver => ReadArrayValue(positions, driver.CarIdx))
+            .ToList();
+
+        var entries = orderedDrivers
+            .Select((driver, index) =>
             {
                 var position = ReadArrayValue(positions, driver.CarIdx);
                 var f2Time = ToFloat(ReadArrayValue(intervalsToLeader, driver.CarIdx));
                 var bestLap = ToFloat(ReadArrayValue(bestLaps, driver.CarIdx));
+                var ahead = index > 0 ? orderedDrivers[index - 1] : null;
+                var lapGaps = isRace
+                    ? _standingsLapGap.UpdateDriver(driver.CarIdx,
+                        ReadArrayValue(completedLaps, driver.CarIdx), leaderCompleted,
+                        ahead?.CarIdx,
+                        ahead is null ? null : ReadArrayValue(completedLaps, ahead.CarIdx))
+                    : new StandingsLapGaps(null, null);
                 if (!IsValidLap(bestLap) && !isRace && IsValidLap(f2Time))
                 {
                     // In Practice/Qualify iRacing reports the fastest lap through F2Time.
@@ -521,6 +540,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     ReadInt(ReadArrayValue(startedLaps, driver.CarIdx)),
                     null,
                     isRace ? f2Time : bestLap,
+                    lapGaps.Leader,
+                    lapGaps.Ahead,
                     driver.SafetyRating,
                     driver.IRating);
             })

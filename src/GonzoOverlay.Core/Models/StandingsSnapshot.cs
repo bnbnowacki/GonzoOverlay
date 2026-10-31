@@ -16,5 +16,7 @@ public sealed record StandingEntry(
     int? LapsStarted,
     float? IntervalSeconds,
     float? LeaderGapSeconds,
+    int? LapsBehindLeader,
+    int? LapsBehindAhead,
     string SafetyRating,
     int? IRating);

@@ -9,5 +9,6 @@
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/LeaderLapEstimator.cs" Link="LeaderLapEstimator.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/FuelStrategyCalculator.cs" Link="FuelStrategyCalculator.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/FuelLapTracker.cs" Link="FuelLapTracker.cs" />
+    <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/StandingsLapGap.cs" Link="StandingsLapGap.cs" />
   </ItemGroup>
 </Project>

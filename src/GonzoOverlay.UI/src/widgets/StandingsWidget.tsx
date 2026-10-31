@@ -321,8 +321,16 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
                   <td>{entry.safetyRating || '--'}</td>
                   <td>{formatIRating(entry.iRating)}</td>
                   <td className="standings-car">{entry.car}</td>
-                  <td>{entry.position === 1 ? 'INT' : formatGap(entry.intervalSeconds)}</td>
-                  <td>{entry.position === 1 ? 'LEADER' : formatGap(entry.leaderGapSeconds)}</td>
+                  <td>{entry.position === 1
+                    ? 'INT'
+                    : !usesBestLap && entry.lapsBehindAhead != null && entry.lapsBehindAhead > 0
+                      ? `+${entry.lapsBehindAhead} laps`
+                      : formatGap(entry.intervalSeconds)}</td>
+                  <td>{entry.position === 1
+                    ? 'LEADER'
+                    : !usesBestLap && entry.lapsBehindLeader != null && entry.lapsBehindLeader > 0
+                      ? `+${entry.lapsBehindLeader} laps`
+                      : formatGap(entry.leaderGapSeconds)}</td>
                   <td
                     key={`${key}-${lapEffect?.version ?? 0}`}
                     className={`${flashClass} ${persistentClass}`.trim() || undefined}

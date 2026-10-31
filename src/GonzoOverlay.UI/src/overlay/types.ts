@@ -50,6 +50,8 @@ export type StandingEntry = {
   lapsStarted: number | null;
   intervalSeconds: number | null;
   leaderGapSeconds: number | null;
+  lapsBehindLeader: number | null;
+  lapsBehindAhead: number | null;
   safetyRating: string;
   iRating: number | null;
 };

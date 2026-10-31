@@ -121,3 +121,38 @@ FuelTick(0, 40, session: 2);
 Check(tracker.AverageConsumption is null && tracker.FuelToAdd is null && tracker.FuelAtFinish is null,
     "fuel history does not leak between sessions");
 Console.WriteLine("Fuel lap snapshot and pit recovery checks passed.");
+
+var standingsGaps = new StandingsLapGap();
+standingsGaps.BeginSession(1, 100, true);
+Check(standingsGaps.UpdateDriver(2, 8, 8).Leader is null, "wait for driver crossing after startup");
+Check(standingsGaps.UpdateDriver(2, 9, 9).Leader == 0, "driver on lead lap after crossing");
+Check(standingsGaps.UpdateDriver(2, 9, 10).Leader == 0, "leader crossing does not update driver gap");
+Check(standingsGaps.UpdateDriver(2, 10, 10).Leader == 0, "driver crossing after leader on same lap");
+Check(standingsGaps.UpdateDriver(2, 10, 11).Leader == 0, "lapped mid-lap does not update gap");
+Check(standingsGaps.UpdateDriver(2, 11, 12).Leader == 1, "first crossing one lap down");
+Check(standingsGaps.UpdateDriver(2, 11, 13).Leader == 1, "gap stays fixed between crossings");
+Check(standingsGaps.UpdateDriver(2, 12, 14).Leader == 2, "multiple laps behind at crossing");
+Check(standingsGaps.UpdateDriver(2, null, 14).Leader == 2, "missing driver lap data keeps previous gap");
+Check(standingsGaps.UpdateDriver(2, 12, null).Leader == 2, "missing leader lap data keeps previous gap");
+Check(standingsGaps.UpdateDriver(2, 13, 13).Leader == 0, "gap decreases after unlapping");
+
+standingsGaps.UpdateDriver(4, 13, 15, 3, 15);
+var fourth = standingsGaps.UpdateDriver(4, 14, 15, 3, 14);
+Check(fourth.Leader == 1 && fourth.Ahead == 0, "one lap from leader but same lap as car ahead");
+standingsGaps.UpdateDriver(5, 12, 15, 4, 14);
+var fifth = standingsGaps.UpdateDriver(5, 13, 15, 4, 14);
+Check(fifth.Leader == 2 && fifth.Ahead == 1, "two laps from leader and one from car ahead");
+standingsGaps.UpdateDriver(6, 12, 15, 5, 13);
+var sixth = standingsGaps.UpdateDriver(6, 13, 15, 5, 13);
+Check(sixth.Leader == 2 && sixth.Ahead == 0, "two laps from leader but same lap as car ahead");
+Check(standingsGaps.UpdateDriver(5, 13, 16, 4, 15).Ahead == 1,
+    "car ahead crossing does not update interval laps");
+Check(standingsGaps.UpdateDriver(5, 13, 16, 3, 16).Ahead is null,
+    "changed car ahead does not reuse another driver's interval");
+Check(standingsGaps.UpdateDriver(5, 14, 16, 3, 16).Ahead == 2,
+    "new car ahead measured on next crossing");
+standingsGaps.BeginSession(2, 100, true);
+Check(standingsGaps.UpdateDriver(2, 0, 0).Leader is null, "new session resets old gap");
+standingsGaps.BeginSession(2, 100, false);
+Check(standingsGaps.UpdateDriver(2, 1, 2) == new StandingsLapGaps(null, null), "no lap gap outside race");
+Console.WriteLine("Standings lap gap smoke checks passed.");
