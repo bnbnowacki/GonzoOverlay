@@ -1,6 +1,7 @@
 namespace GonzoOverlay.Core.Models;
 
 public sealed record RelativeSnapshot(
+    string SessionType,
     int PlayerPosition,
     IReadOnlyList<RelativeEntry> Entries,
     int? CurrentLap,

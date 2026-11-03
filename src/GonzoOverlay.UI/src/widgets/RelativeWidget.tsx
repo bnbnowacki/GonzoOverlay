@@ -68,7 +68,9 @@ function formatRemainingTime(seconds: number | null) {
 }
 
 export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
-  const isLapBasedRace = isValidSessionLaps(snapshot.sessionLapsTotal);
+  const isRace = snapshot.sessionType.toLowerCase() === 'race';
+  const isPractice = snapshot.sessionType.toLowerCase() === 'practice';
+  const isLapBasedRace = isRace && isValidSessionLaps(snapshot.sessionLapsTotal);
   const timedRaceEstimate = getTimedRaceEstimate(snapshot.estimatedRaceLapsTotal);
   const playerIndex = snapshot.entries.findIndex((entry) => entry.isPlayer);
   const ahead = playerIndex >= 0 ? snapshot.entries.slice(0, playerIndex) : [];
@@ -86,6 +88,11 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
   return (
     <section className="relative-widget">
       <table className="relative-table">
+        <colgroup>
+          <col className="relative-position-column" />
+          <col />
+          <col className="relative-gap-column" />
+        </colgroup>
         <tbody>
           {rows.map((entry, index) => {
             if (!entry) {
@@ -111,8 +118,8 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
                 </td>
                 <td className={[
                   'relative-driver',
-                  !entry.isPlayer && entry.lapRelation === 'ahead' ? 'relative-driver-lapping' : '',
-                  !entry.isPlayer && entry.lapRelation === 'behind' ? 'relative-driver-lapped' : '',
+                  !isPractice && !entry.isPlayer && entry.lapRelation === 'ahead' ? 'relative-driver-lapping' : '',
+                  !isPractice && !entry.isPlayer && entry.lapRelation === 'behind' ? 'relative-driver-lapped' : '',
                 ].filter(Boolean).join(' ')}>{entry.driver}</td>
                 <td className="relative-gap">
                   {formatGap(entry.gapToPlayerSeconds, entry.isPlayer)}
@@ -123,7 +130,21 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
         </tbody>
       </table>
       <div className={`relative-footer${isLapBasedRace ? ' relative-footer-laps-only' : ''}`}>
-        {isLapBasedRace ? (
+        {!isRace ? (
+          <>
+            <div className="relative-footer-item">
+              <span>OKRĄŻENIA</span>
+              <strong>{formatCurrentLap(snapshot.currentLap)}</strong>
+            </div>
+            <div className="relative-footer-item relative-footer-time">
+              <span>CZAS</span>
+              <strong>
+                {formatRemainingTime(snapshot.sessionTimeRemainingSeconds)} /{' '}
+                {formatRemainingTime(snapshot.sessionTimeTotalSeconds)}
+              </strong>
+            </div>
+          </>
+        ) : isLapBasedRace ? (
           <div className="relative-footer-item relative-footer-laps-only-item">
             <span>OKRĄŻENIA</span>
             <strong>

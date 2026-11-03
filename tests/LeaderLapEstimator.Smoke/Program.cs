@@ -169,3 +169,14 @@ Check(RelativeLapRelation.Calculate(5, 5, 0.40, 0.35, -1) == "same", "same-lap c
 Check(RelativeLapRelation.Calculate(null, 5, 0.40, 0.35, -1) == "unknown", "missing lap count");
 Check(RelativeLapRelation.Calculate(5, 5, -1, 0.35, -1) == "unknown", "invalid track progress");
 Console.WriteLine("Relative lap relation checks passed.");
+
+var raceSource = new RaceStandingsSource();
+Check(raceSource.UseQualifying(3, 100, true, 3, true, true, true), "parade lap must not switch to race standings");
+Check(raceSource.UseQualifying(3, 100, true, 4, true, false, true), "grid standings remain until first race lap");
+Check(raceSource.UseQualifying(3, 100, true, 4, true, true, false), "wait for race positions after first lap");
+Check(!raceSource.UseQualifying(3, 100, true, 4, true, true, true), "switch when first race lap and positions arrive");
+Check(!raceSource.UseQualifying(3, 100, true, 4, true, false, false), "do not revert after temporary telemetry loss");
+Check(raceSource.UseQualifying(4, 100, true, 3, true, false, false), "new race resets source");
+Check(!raceSource.UseQualifying(4, 100, false, 3, true, false, false), "do not replace practice standings");
+Check(!raceSource.UseQualifying(5, 100, true, 3, false, false, true), "use race positions when qualifying is unavailable");
+Console.WriteLine("Race standings source checks passed.");

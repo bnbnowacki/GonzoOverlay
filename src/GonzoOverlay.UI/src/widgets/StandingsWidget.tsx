@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { StandingsSnapshot, StandingEntry } from '../overlay/types';
+import { selectStandingsRows } from './standingsRows';
 
 type LapHighlight = 'none' | 'personalBest' | 'serverBest';
 
@@ -77,7 +78,8 @@ function isValidLapTime(seconds: number | null | undefined) {
 }
 
 export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
-  const previousSessionType = useRef(snapshot.sessionType);
+  const standingsContext = `${snapshot.sessionType}-${snapshot.displayQualifyingResults}`;
+  const previousSessionType = useRef(standingsContext);
   const previousLapCounts = useRef(new Map<string, number | null>());
   const previousLapStarts = useRef(new Map<string, number | null>());
   const previousLastLaps = useRef(new Map<string, number | null>());
@@ -85,11 +87,34 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
   const pendingLaps = useRef(new Map<string, PendingLap>());
   const lapFlashTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [lapEffects, setLapEffects] = useState<LapEffects>({});
-  const usesBestLap = snapshot.sessionType.toLowerCase() !== 'race';
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const rowHeightRef = useRef(0);
+  const [rowCapacity, setRowCapacity] = useState<number | null>(null);
+  const usesBestLap = snapshot.displayQualifyingResults || snapshot.sessionType.toLowerCase() !== 'race';
+
+  useLayoutEffect(() => {
+    const wrap = tableWrapRef.current;
+    const table = wrap?.querySelector('table');
+    if (!wrap || !table) return;
+
+    const measure = () => {
+      const row = table.querySelector('tbody tr');
+      const rowHeight = row?.getBoundingClientRect().height || rowHeightRef.current;
+      if (rowHeight > 0) {
+        rowHeightRef.current = rowHeight;
+        setRowCapacity(Math.floor((wrap.clientHeight + 0.01) / rowHeight));
+      }
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(wrap);
+    observer.observe(table);
+    measure();
+    return () => observer.disconnect();
+  }, [snapshot.entries.length]);
 
   useEffect(() => {
-    if (previousSessionType.current !== snapshot.sessionType) {
-      previousSessionType.current = snapshot.sessionType;
+    if (previousSessionType.current !== standingsContext) {
+      previousSessionType.current = standingsContext;
       previousLapCounts.current = new Map();
       previousLapStarts.current = new Map();
       previousLastLaps.current = new Map();
@@ -295,10 +320,10 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
 
   return (
     <div className="standings-widget" aria-label="Standings">
-      <div className="standings-table-wrap">
+      <div className="standings-table-wrap" ref={tableWrapRef}>
         <table className="standings-table">
           <tbody>
-            {snapshot.entries.map((entry) => {
+            {(rowCapacity === null ? snapshot.entries : selectStandingsRows(snapshot.entries, rowCapacity)).map((entry, index, visibleEntries) => {
               const key = getDriverKey(entry);
               const lapTime = usesBestLap ? entry.bestLapSeconds : entry.lastLapSeconds;
               const lapEffect = lapEffects[key];
@@ -314,7 +339,10 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
                   : '';
 
               return (
-                <tr key={key}>
+                <tr key={key} className={[
+                  entry.isPlayer ? 'standings-player' : '',
+                  index > 0 && entry.position > visibleEntries[index - 1].position + 1 ? 'standings-row-gap' : '',
+                ].filter(Boolean).join(' ') || undefined}>
                   <td className="standings-position">{entry.position}</td>
                   <td className="standings-driver">{entry.driver}</td>
                   <td className="standings-number">{entry.number}</td>

@@ -54,10 +54,12 @@ export type StandingEntry = {
   lapsBehindAhead: number | null;
   safetyRating: string;
   iRating: number | null;
+  isPlayer: boolean;
 };
 
 export type StandingsSnapshot = {
   sessionType: string;
+  displayQualifyingResults: boolean;
   entries: StandingEntry[];
   timestamp: string;
 };
@@ -72,6 +74,7 @@ export type RelativeEntry = {
 };
 
 export type RelativeSnapshot = {
+  sessionType: string;
   playerPosition: number;
   entries: RelativeEntry[];
   currentLap: number | null;

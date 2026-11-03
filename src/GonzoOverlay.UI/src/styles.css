@@ -183,21 +183,26 @@ button {
   color: transparent;
 }
 
-.relative-position {
+.relative-position-column {
   width: 12%;
+}
+
+.relative-gap-column {
+  width: 26%;
+}
+
+.relative-position {
   color: #fff;
   font-weight: 800;
   text-align: center;
 }
 
 .relative-driver {
-  width: 62%;
   color: #fff;
   font-weight: 700;
 }
 
 .relative-gap {
-  width: 26%;
   color: #d7e3f2;
   text-align: right;
 }
@@ -288,6 +293,7 @@ button {
 }
 
 .standings-table-wrap {
+  flex: 1;
   min-height: 0;
   overflow: hidden;
 }
@@ -309,6 +315,18 @@ button {
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
+}
+
+.standings-table .standings-row-gap td {
+  border-top: 2px solid rgba(142, 160, 184, 0.6);
+}
+
+:where(.standings-player) td {
+  background-color: rgba(97, 161, 255, 0.18);
+}
+
+.standings-player .standings-driver {
+  color: #f8e66c;
 }
 
 .standings-lap-flash-green {

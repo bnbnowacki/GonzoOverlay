@@ -47,6 +47,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly LeaderLapEstimator _leaderLapEstimator = new();
     private readonly FuelLapTracker _fuelLapTracker = new();
     private readonly StandingsLapGap _standingsLapGap = new();
+    private readonly RaceStandingsSource _raceStandingsSource = new();
     private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
     private int? _fuelLogPreviousLap;
     private float? _pitSpeedLimitMetersPerSecond;
@@ -54,6 +55,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         new Dictionary<int, DriverMetadata>();
     private IReadOnlyDictionary<int, string> _sessionTypes =
         new Dictionary<int, string>();
+    private IReadOnlyDictionary<int, QualifyingResult> _qualifyingResults =
+        new Dictionary<int, QualifyingResult>();
     private IReadOnlyList<double?>? _previousCarIdxLap;
     private IReadOnlyList<double?>? _previousCarIdxLapCompleted;
     private IReadOnlyList<double?>? _previousCarIdxLastLapTime;
@@ -117,8 +120,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             data.TrackWetness?.ToString() ?? "Unknown",
                             snapshot.Timestamp));
                         PublishDebugLapUpdates(data, snapshot.Timestamp);
-                        PublishStandings(BuildStandingsSnapshot(data, snapshot.Timestamp));
-                        var relative = BuildRelativeSnapshot(data, snapshot.Timestamp);
+                        var standings = BuildStandingsSnapshot(data, snapshot.Timestamp);
+                        PublishStandings(standings);
+                        var relative = BuildRelativeSnapshot(data, snapshot.Timestamp, standings.DisplayQualifyingResults);
                         PublishRelative(relative);
                         var fuel = BuildFuelSnapshot(data, relative, snapshot.Timestamp);
                         PublishFuel(fuel);
@@ -139,6 +143,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             _leaderLapEstimator.Reset();
                             _fuelLapTracker.Reset();
                             _standingsLapGap.Reset();
+                            _raceStandingsSource.Reset();
                             _fuelLogContext = null;
                             _fuelLogPreviousLap = null;
                         }
@@ -382,6 +387,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     {
         _drivers = ReadDrivers(session);
         _sessionTypes = ReadSessionTypes(session);
+        _qualifyingResults = ReadQualifyingResults(session);
         _previousCarIdxLap = null;
         _previousCarIdxLapCompleted = null;
         _previousCarIdxLastLapTime = null;
@@ -497,6 +503,32 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             ? value
             : "Unknown";
         var isRace = sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
+        var useQualifying = _raceStandingsSource.UseQualifying(
+            ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), isRace, ReadInt(data.SessionState),
+            _qualifyingResults.Count > 0,
+            _drivers.Values.Any(driver => !driver.IsPaceCar && ReadArrayValue(completedLaps, driver.CarIdx) >= 1),
+            _drivers.Values.Any(driver => !driver.IsPaceCar && ReadArrayValue(positions, driver.CarIdx) > 0));
+        if (useQualifying)
+        {
+            var qualifyingEntries = _qualifyingResults.Values
+                .Where(result => _drivers.ContainsKey(result.CarIdx))
+                .OrderBy(result => result.Position)
+                .Select(result =>
+                {
+                    var driver = _drivers[result.CarIdx];
+                    return new StandingEntry(result.Position, driver.Number, driver.Driver, driver.Car,
+                        null, result.FastestTime, null, null, null, null, null, null,
+                        driver.SafetyRating, driver.IRating, driver.CarIdx == ReadInt(data.PlayerCarIdx));
+                }).ToList();
+            var gaps = NormalizePracticeLeaderGaps(qualifyingEntries);
+            var withQualifyingIntervals = gaps.Select((entry, index) => entry with
+            {
+                IntervalSeconds = index > 0 && entry.LeaderGapSeconds.HasValue && gaps[index - 1].LeaderGapSeconds.HasValue
+                    ? Math.Max(0, entry.LeaderGapSeconds.Value - gaps[index - 1].LeaderGapSeconds!.Value)
+                    : null
+            }).ToList();
+            return new StandingsSnapshot(sessionType, true, withQualifyingIntervals, timestamp);
+        }
         _standingsLapGap.BeginSession(ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), isRace);
         var leader = isRace
             ? _drivers.Values.FirstOrDefault(driver => ReadArrayValue(positions, driver.CarIdx) == 1)
@@ -543,7 +575,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     lapGaps.Leader,
                     lapGaps.Ahead,
                     driver.SafetyRating,
-                    driver.IRating);
+                    driver.IRating,
+                    driver.CarIdx == ReadInt(data.PlayerCarIdx));
             })
             .Where(entry => entry.Position != int.MaxValue)
             .OrderBy(entry => entry.Position)
@@ -567,10 +600,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             })
             .ToList();
 
-        return new StandingsSnapshot(sessionType, withIntervals, timestamp);
+        return new StandingsSnapshot(sessionType, false, withIntervals, timestamp);
     }
 
-    private RelativeSnapshot BuildRelativeSnapshot(TelemetryData data, DateTimeOffset timestamp)
+    private RelativeSnapshot BuildRelativeSnapshot(TelemetryData data, DateTimeOffset timestamp, bool useQualifying)
     {
         var positions = ReadNumericArray(data.CarIdxPosition);
         var estimatedTimesToPlayer = ReadNumericArray(data.CarIdxEstTime);
@@ -582,9 +615,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var sessionTimeRemainingSeconds = ToDouble(data.SessionTimeRemain);
         var sessionTimeTotalSeconds = ToDouble(data.SessionTimeTotal);
         var sessionNumber = ReadInt(data.SessionNum);
-        var isRace = sessionNumber.HasValue &&
-            _sessionTypes.TryGetValue(sessionNumber.Value, out var sessionType) &&
-            sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
+        var sessionType = sessionNumber.HasValue && _sessionTypes.TryGetValue(sessionNumber.Value, out var type)
+            ? type
+            : "Unknown";
+        var isRace = sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
         // SDK session states 5/6 are checkered/cooldown; flag bit 0 is checkered.
         var sessionState = ReadInt(data.SessionState);
         var sessionFlags = ReadInt(data.SessionFlags);
@@ -602,7 +636,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             sessionTimeRemainingSeconds,
             timestamp);
         var playerCarIdx = ReadInt(data.PlayerCarIdx) ?? -1;
-        var playerPosition = ReadPosition(positions, playerCarIdx);
+        int PositionFor(int carIdx) => useQualifying
+            ? _qualifyingResults.TryGetValue(carIdx, out var result) ? result.Position : 0
+            : ReadPosition(positions, carIdx);
+        var playerPosition = PositionFor(playerCarIdx);
         var playerLapDistance = ReadArrayValue(lapDistances, playerCarIdx);
         var playerCompletedLaps = ReadArrayValue(completedLaps, playerCarIdx);
         var playerEstimatedTime = ToFloat(ReadArrayValue(
@@ -613,6 +650,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         if (!playerEstimatedTime.HasValue || !playerLapDistance.HasValue)
         {
             return new RelativeSnapshot(
+                sessionType,
                 playerPosition,
                 Array.Empty<RelativeEntry>(),
                 currentLap,
@@ -627,7 +665,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         var relativeEntries = _drivers.Values
             .Select(driver =>
             {
-                var position = ReadPosition(positions, driver.CarIdx);
+                var position = PositionFor(driver.CarIdx);
                 var estimatedTime = ToFloat(ReadArrayValue(
                     estimatedTimesToPlayer,
                     driver.CarIdx));
@@ -665,6 +703,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         if (playerEntry is null)
         {
             return new RelativeSnapshot(
+                sessionType,
                 playerPosition,
                 Array.Empty<RelativeEntry>(),
                 currentLap,
@@ -693,6 +732,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             .ToList();
 
         return new RelativeSnapshot(
+            sessionType,
             playerPosition,
             entries,
             currentLap,
@@ -795,7 +835,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     ReadString(ReadProperty(driver, "CarScreenName")) ?? "Unknown",
                 ReadString(ReadProperty(driver, "LicString")) ?? "",
                 ReadInt(ReadProperty(driver, "IRating")),
-                ToFloat(ToDouble(ReadProperty(driver, "CarClassEstLapTime")))))
+                ToFloat(ToDouble(ReadProperty(driver, "CarClassEstLapTime"))),
+                ToBool(ReadProperty(driver, "CarIsPaceCar")) == true))
             .Where(driver => driver.CarIdx >= 0)
             .ToDictionary(driver => driver.CarIdx);
     }
@@ -813,6 +854,34 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             })
             .Where(item => item.Number.HasValue && !string.IsNullOrWhiteSpace(item.Type))
             .ToDictionary(item => item.Number!.Value, item => item.Type!);
+    }
+
+    private static IReadOnlyDictionary<int, QualifyingResult> ReadQualifyingResults(object session)
+    {
+        var results = ReadItems(ReadProperty(ReadProperty(session, "QualifyResultsInfo"), "Results")).ToList();
+        if (results.Count == 0)
+        {
+            var sessions = ReadItems(ReadProperty(ReadProperty(session, "SessionInfo"), "Sessions"));
+            var qualifying = sessions
+                .Where(item => (ReadString(ReadProperty(item, "SessionType")) ?? "")
+                    .Contains("Qualify", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(item => ReadInt(ReadProperty(item, "SessionNum")) ?? -1)
+                .FirstOrDefault(item => ReadItems(ReadProperty(item, "ResultsPositions")).Any());
+            results = ReadItems(ReadProperty(qualifying, "ResultsPositions")).ToList();
+        }
+
+        return results.Select(item => new
+            {
+                CarIdx = ReadInt(ReadProperty(item, "CarIdx")),
+                Position = ReadInt(ReadProperty(item, "Position")),
+                FastestTime = ToFloat(ToDouble(ReadProperty(item, "FastestTime")))
+            })
+            .Where(item => item.CarIdx is >= 0 and < 64 && item.Position is >= 0 and < 64)
+            .GroupBy(item => item.CarIdx!.Value)
+            .Select(group => group.First())
+            .ToDictionary(item => item.CarIdx!.Value, item => new QualifyingResult(
+                item.CarIdx!.Value, item.Position!.Value + 1,
+                item.FastestTime is > 0 && float.IsFinite(item.FastestTime.Value) ? item.FastestTime : null));
     }
 
     private static object? ReadProperty(object? instance, string name) =>
@@ -914,7 +983,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         string Car,
         string SafetyRating,
         int? IRating,
-        float? ClassEstLapTime);
+        float? ClassEstLapTime,
+        bool IsPaceCar);
+
+    private sealed record QualifyingResult(int CarIdx, int Position, float? FastestTime);
 
     private void PublishConnectionState(string state)
     {

@@ -2,6 +2,7 @@ namespace GonzoOverlay.Core.Models;
 
 public sealed record StandingsSnapshot(
     string SessionType,
+    bool DisplayQualifyingResults,
     IReadOnlyList<StandingEntry> Entries,
     DateTimeOffset Timestamp);
 
@@ -19,4 +20,5 @@ public sealed record StandingEntry(
     int? LapsBehindLeader,
     int? LapsBehindAhead,
     string SafetyRating,
-    int? IRating);
+    int? IRating,
+    bool IsPlayer);
