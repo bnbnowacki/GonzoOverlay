@@ -23,6 +23,7 @@ const defaultTelemetry: TelemetrySnapshot = {
   pitSpeedLimitMetersPerSecond: null,
   onPitRoad: null,
   isApproachingPits: null,
+  isOnTrack: null,
   rpm: null,
   gear: null,
   fuelLevelLiters: null,
@@ -129,6 +130,7 @@ function App() {
           ...current,
           onPitRoad: false,
           isApproachingPits: false,
+          isOnTrack: null,
           speedMetersPerSecond: null,
           speedKmh: null,
         }));

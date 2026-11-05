@@ -26,7 +26,7 @@ export const widgetRegistry: WidgetDefinition[] = [
   },
   {
     id: 'pitSpeedHelper',
-    render: ({ telemetry }) => <PitSpeedHelperWidget snapshot={telemetry} />,
+    render: ({ telemetry }) => telemetry.isOnTrack === false ? null : <PitSpeedHelperWidget snapshot={telemetry} />,
   },
   {
     id: 'standings',
@@ -34,7 +34,7 @@ export const widgetRegistry: WidgetDefinition[] = [
   },
   {
     id: 'relative',
-    render: ({ relative }) => <RelativeWidget snapshot={relative} />,
+    render: ({ relative, telemetry }) => telemetry.isOnTrack === false ? null : <RelativeWidget snapshot={relative} />,
   },
   {
     id: 'fuelCalculator',

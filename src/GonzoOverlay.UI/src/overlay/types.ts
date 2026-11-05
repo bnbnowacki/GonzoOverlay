@@ -33,6 +33,7 @@ export type TelemetrySnapshot = {
   pitSpeedLimitMetersPerSecond: number | null;
   onPitRoad: boolean | null;
   isApproachingPits: boolean | null;
+  isOnTrack: boolean | null;
   rpm: number | null;
   gear: number | null;
   fuelLevelLiters: number | null;

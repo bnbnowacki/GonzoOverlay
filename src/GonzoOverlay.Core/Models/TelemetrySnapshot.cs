@@ -6,6 +6,7 @@ public sealed record TelemetrySnapshot(
     float? PitSpeedLimitMetersPerSecond,
     bool? OnPitRoad,
     bool? IsApproachingPits,
+    bool? IsOnTrack,
     float? Rpm,
     int? Gear,
     float? FuelLevelLiters,

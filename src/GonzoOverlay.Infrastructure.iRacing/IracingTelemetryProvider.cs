@@ -30,6 +30,9 @@ namespace GonzoOverlay.Infrastructure.iRacing;
     TelemetryVar.CarIdxEstTime,
     TelemetryVar.CarIdxLapDistPct,
     TelemetryVar.CarIdxOnPitRoad,
+    TelemetryVar.CarIdxTrackSurface,
+    TelemetryVar.IsOnTrackCar,
+    TelemetryVar.IsOnTrack,
     TelemetryVar.PlayerCarIdx,
     TelemetryVar.CarIdxLastLapTime,
     TelemetryVar.CarIdxBestLapTime,
@@ -57,6 +60,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         new Dictionary<int, string>();
     private IReadOnlyDictionary<int, QualifyingResult> _qualifyingResults =
         new Dictionary<int, QualifyingResult>();
+    private IReadOnlyDictionary<int, IReadOnlyDictionary<int, RaceResultDebug>> _raceResultsDebug =
+        new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
+    private string? _previousLapGapDebugSignature;
     private IReadOnlyList<double?>? _previousCarIdxLap;
     private IReadOnlyList<double?>? _previousCarIdxLapCompleted;
     private IReadOnlyList<double?>? _previousCarIdxLastLapTime;
@@ -110,6 +116,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             _pitSpeedLimitMetersPerSecond,
                             data.OnPitRoad,
                             data.PlayerTrackSurface == TrackLocation.AproachingPits,
+                            data.IsOnTrack,
                             data.RPM,
                             data.Gear,
                             data.FuelLevel,
@@ -122,6 +129,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         PublishDebugLapUpdates(data, snapshot.Timestamp);
                         var standings = BuildStandingsSnapshot(data, snapshot.Timestamp);
                         PublishStandings(standings);
+                        PublishLapGapDebug(data, standings, snapshot.Timestamp);
                         var relative = BuildRelativeSnapshot(data, snapshot.Timestamp, standings.DisplayQualifyingResults);
                         PublishRelative(relative);
                         var fuel = BuildFuelSnapshot(data, relative, snapshot.Timestamp);
@@ -144,6 +152,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             _fuelLapTracker.Reset();
                             _standingsLapGap.Reset();
                             _raceStandingsSource.Reset();
+                            _previousLapGapDebugSignature = null;
+                            _raceResultsDebug = new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
                             _fuelLogContext = null;
                             _fuelLogPreviousLap = null;
                         }
@@ -388,6 +398,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         _drivers = ReadDrivers(session);
         _sessionTypes = ReadSessionTypes(session);
         _qualifyingResults = ReadQualifyingResults(session);
+        _raceResultsDebug = ReadRaceResultsDebug(session);
         _previousCarIdxLap = null;
         _previousCarIdxLapCompleted = null;
         _previousCarIdxLastLapTime = null;
@@ -476,6 +487,67 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         {
             _logger.LogError(exception, "Błąd odbiorcy debug logu telemetrii");
         }
+    }
+
+    private void PublishLapGapDebug(TelemetryData data, StandingsSnapshot standings, DateTimeOffset timestamp)
+    {
+        if (!standings.SessionType.Equals("Race", StringComparison.OrdinalIgnoreCase)) return;
+
+        var playerIdx = ReadInt(data.PlayerCarIdx) ?? -1;
+        var positions = ReadNumericArray(data.CarIdxPosition);
+        var laps = ReadNumericArray(data.CarIdxLapCompleted);
+        var startedLaps = ReadNumericArray(data.CarIdxLap);
+        var distances = ReadNumericArray(data.CarIdxLapDistPct);
+        var pitRoad = ReadBooleanArray(data.CarIdxOnPitRoad);
+        var surfaces = ReadNumericArray(data.CarIdxTrackSurface);
+        var f2Times = ReadNumericArray(data.CarIdxF2Time);
+        var playerPosition = ReadPosition(positions, playerIdx);
+        var leaderIdx = _drivers.Keys.FirstOrDefault(index => ReadPosition(positions, index) == 1, -1);
+        var aheadIdx = playerPosition > 1
+            ? _drivers.Keys.FirstOrDefault(index => ReadPosition(positions, index) == playerPosition - 1, -1)
+            : -1;
+        var sessionNumber = ReadInt(data.SessionNum) ?? -1;
+        _raceResultsDebug.TryGetValue(sessionNumber, out var results);
+        var playerEntry = standings.Entries.FirstOrDefault(entry => entry.IsPlayer);
+
+        static string Number(double? value, string format = "0.###") =>
+            value.HasValue && double.IsFinite(value.Value)
+                ? value.Value.ToString(format, CultureInfo.InvariantCulture)
+                : "brak";
+
+        string Car(int index, bool signature)
+        {
+            if (index < 0) return "brak";
+            var resultInfo = results is not null && results.TryGetValue(index, out var found) ? found : null;
+            var status = $"id={index} poz={Number(ReadArrayValue(positions, index))}" +
+                $" ukończone={Number(ReadArrayValue(laps, index))} lap={Number(ReadArrayValue(startedLaps, index))}" +
+                $" pit={ReadBooleanArrayValue(pitRoad, index)?.ToString() ?? "brak"}" +
+                $" powierzchnia={Number(ReadArrayValue(surfaces, index))}" +
+                $" wyniki_poz={resultInfo?.Position.ToString() ?? "brak"}" +
+                $" wyniki_ukończone={resultInfo?.LapsComplete.ToString() ?? "brak"}" +
+                $" wyniki_czas={Number(resultInfo?.Time)}";
+            if (signature) return status;
+            var name = _drivers.TryGetValue(index, out var driver) ? driver.Driver : "brak";
+            return $"{name} {status} dystans={Number(ReadArrayValue(distances, index), "0.0000")}" +
+                $" f2={Number(ReadArrayValue(f2Times, index), "0.000")}";
+        }
+
+        var signature = $"{sessionNumber}/{ReadInt(data.SessionUniqueID)} | state={ReadInt(data.SessionState)}" +
+            $" | w_aucie={data.IsOnTrack} | fizyka_auta={data.IsOnTrackCar} | lider=[{Car(leaderIdx, true)}]" +
+            $" | przed=[{Car(aheadIdx, true)}] | gracz=[{Car(playerIdx, true)}]" +
+            $" | nasz_leader={playerEntry?.LapsBehindLeader} | nasz_int={playerEntry?.LapsBehindAhead}";
+        if (signature == _previousLapGapDebugSignature) return;
+        _previousLapGapDebugSignature = signature;
+
+        var line = $"{timestamp.ToLocalTime():HH:mm:ss.fff} | DUBLOWANIE | sesja={sessionNumber}/{ReadInt(data.SessionUniqueID)}" +
+            $" | state={ReadInt(data.SessionState)} | w_aucie={data.IsOnTrack?.ToString() ?? "brak"}" +
+            $" | fizyka_auta={data.IsOnTrackCar?.ToString() ?? "brak"}" +
+            $" | LIDER [{Car(leaderIdx, false)}] | PRZED [{Car(aheadIdx, false)}]" +
+            $" | GRACZ [{Car(playerIdx, false)}]" +
+            $" | NASZ LEADER={playerEntry?.LapsBehindLeader?.ToString() ?? "brak"}" +
+            $" INT={playerEntry?.LapsBehindAhead?.ToString() ?? "brak"}";
+        try { DebugLogUpdated?.Invoke(line); }
+        catch (Exception exception) { _logger.LogError(exception, "Błąd odbiorcy logu dublowania"); }
     }
 
     private static bool HasDebugValueChanged(double? current, double? previous)
@@ -884,6 +956,30 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                 item.FastestTime is > 0 && float.IsFinite(item.FastestTime.Value) ? item.FastestTime : null));
     }
 
+    private static IReadOnlyDictionary<int, IReadOnlyDictionary<int, RaceResultDebug>> ReadRaceResultsDebug(object session)
+    {
+        var sessions = ReadItems(ReadProperty(ReadProperty(session, "SessionInfo"), "Sessions"));
+        var result = new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
+        foreach (var item in sessions)
+        {
+            var number = ReadInt(ReadProperty(item, "SessionNum"));
+            var type = ReadString(ReadProperty(item, "SessionType"));
+            if (!number.HasValue || !string.Equals(type, "Race", StringComparison.OrdinalIgnoreCase)) continue;
+            var entries = new Dictionary<int, RaceResultDebug>();
+            foreach (var entry in ReadItems(ReadProperty(item, "ResultsPositions")))
+            {
+                var carIdx = ReadInt(ReadProperty(entry, "CarIdx"));
+                if (!carIdx.HasValue || carIdx < 0) continue;
+                entries[carIdx.Value] = new RaceResultDebug(
+                    ReadInt(ReadProperty(entry, "Position")),
+                    ReadInt(ReadProperty(entry, "LapsComplete")),
+                    ToDouble(ReadProperty(entry, "Time")));
+            }
+            result[number.Value] = entries;
+        }
+        return result;
+    }
+
     private static object? ReadProperty(object? instance, string name) =>
         instance?.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance)?.GetValue(instance);
 
@@ -987,6 +1083,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
         bool IsPaceCar);
 
     private sealed record QualifyingResult(int CarIdx, int Position, float? FastestTime);
+
+    private sealed record RaceResultDebug(int? Position, int? LapsComplete, double? Time);
 
     private void PublishConnectionState(string state)
     {
