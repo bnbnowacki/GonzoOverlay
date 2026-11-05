@@ -51,6 +51,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly FuelLapTracker _fuelLapTracker = new();
     private readonly StandingsLapGap _standingsLapGap = new();
     private readonly RaceStandingsSource _raceStandingsSource = new();
+    private readonly SessionStandingsLog _sessionStandingsLog = new();
+    private readonly RawSessionStandingsLog _rawSessionStandingsLog = new();
     private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
     private int? _fuelLogPreviousLap;
     private float? _pitSpeedLimitMetersPerSecond;
@@ -137,9 +139,31 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         PublishFuelLapLog(data, relative, fuel);
                         return Task.CompletedTask;
                     },
+                    OnRawSessionInfoUpdate = yaml =>
+                    {
+                        try
+                        {
+                            var rawLog = _rawSessionStandingsLog.Update(yaml, DateTimeOffset.UtcNow);
+                            if (rawLog is not null) DebugLogUpdated?.Invoke(rawLog);
+                        }
+                        catch (Exception exception)
+                        {
+                            _logger.LogError(exception, "Błąd logowania surowych wyników sesji");
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnSessionInfoUpdate = session =>
                     {
                         UpdateSessionMetadata(session);
+                        try
+                        {
+                            var standingsLog = _sessionStandingsLog.Update(session, DateTimeOffset.UtcNow);
+                            if (standingsLog is not null) DebugLogUpdated?.Invoke(standingsLog);
+                        }
+                        catch (Exception exception)
+                        {
+                            _logger.LogError(exception, "Błąd logowania danych sesji dla standings");
+                        }
                         _pitSpeedLimitMetersPerSecond = ParsePitSpeedLimit(
                             session.WeekendInfo?.TrackPitSpeedLimit?.ToString());
                         return Task.CompletedTask;
@@ -152,6 +176,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             _fuelLapTracker.Reset();
                             _standingsLapGap.Reset();
                             _raceStandingsSource.Reset();
+                            _sessionStandingsLog.Reset();
+                            _rawSessionStandingsLog.Reset();
                             _previousLapGapDebugSignature = null;
                             _raceResultsDebug = new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
                             _fuelLogContext = null;

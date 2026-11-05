@@ -180,3 +180,46 @@ Check(raceSource.UseQualifying(4, 100, true, 3, true, false, false), "new race r
 Check(!raceSource.UseQualifying(4, 100, false, 3, true, false, false), "do not replace practice standings");
 Check(!raceSource.UseQualifying(5, 100, true, 3, false, false, true), "use race positions when qualifying is unavailable");
 Console.WriteLine("Race standings source checks passed.");
+
+var sessionLogger = new SessionStandingsLog();
+var logTime = DateTimeOffset.UtcNow;
+object SessionSample(int current, int laps, bool includeDriver = true) => new
+{
+    WeekendInfo = new { SessionID = 42, SubSessionID = 99 },
+    SessionInfo = new
+    {
+        CurrentSessionNum = current,
+        Sessions = new[] { new
+        {
+            SessionNum = current, SessionType = "Race", ResultsLapsComplete = laps,
+            ResultsPositions = includeDriver
+                ? new[] { new { CarIdx = 7, Position = 2, LapsComplete = laps, Lap = laps + 1, LapsDriven = 1.5, Time = 12.34, ReasonOutStr = "" } }
+                : Array.Empty<object>(),
+            QualifyPositions = Array.Empty<object>()
+        } }
+    },
+    QualifyResultsInfo = new { Results = Array.Empty<object>() },
+    DriverInfo = new { Drivers = new[] { new { CarIdx = 7, UserName = "Driver", CarNumber = "9" } } }
+};
+var firstSessionLog = sessionLogger.Update(SessionSample(2, 1), logTime);
+Check(firstSessionLog is not null && firstSessionLog.Contains("PELNY_OBRAZ") &&
+    firstSessionLog.Contains("LapsDriven") && firstSessionLog.Contains("KIEROWCA carIdx=7"), "initial standings session snapshot");
+Check(sessionLogger.Update(SessionSample(2, 1), logTime.AddSeconds(1)) is null, "identical session update is not repeated");
+var changedSessionLog = sessionLogger.Update(SessionSample(2, 2), logTime.AddSeconds(2));
+Check(changedSessionLog is not null && changedSessionLog.Contains("ZMIANY") &&
+    changedSessionLog.Contains("WYNIK carIdx=7") && changedSessionLog.Contains("\"LapsComplete\":2"), "changed session result captured");
+Check(sessionLogger.Update(SessionSample(2, 2, false), logTime.AddSeconds(3))!.Contains("WYNIK_USUNIETY carIdx=7"), "removed result captured");
+Check(sessionLogger.Update(SessionSample(2, 2, false), logTime.AddMinutes(1))!.Contains("PELNY_OBRAZ"), "periodic full snapshot");
+Check(sessionLogger.Update(SessionSample(3, 0), logTime.AddMinutes(1).AddSeconds(1))!.Contains("PELNY_OBRAZ"), "session switch resets snapshot");
+Console.WriteLine("Session standings log checks passed.");
+
+var rawLogger = new RawSessionStandingsLog();
+const string rawYaml = "WeekendInfo:\n  TrackName: Test\nSessionInfo:\n  CurrentSessionNum: 2\n  Sessions:\n    - CustomField: 42\nQualifyResultsInfo:\n  Results: []\nDriverInfo:\n  Drivers: []\n";
+var rawLog = rawLogger.Update(rawYaml, logTime);
+Check(rawLog is not null && rawLog.Contains("CustomField: 42") && rawLog.Contains("QualifyResultsInfo:") &&
+    !rawLog.Contains("DriverInfo:") && !rawLog.Contains("TrackName:"), "raw session sections retain unknown fields");
+Check(rawLogger.Update(rawYaml, logTime.AddSeconds(5)) is null, "raw snapshot throttled");
+Check(rawLogger.Update(rawYaml, logTime.AddMinutes(1)) is not null, "periodic raw snapshot");
+Check(rawLogger.Update(rawYaml.Replace("CurrentSessionNum: 2", "CurrentSessionNum: 3"), logTime.AddMinutes(1).AddSeconds(1)) is not null,
+    "raw snapshot on session change");
+Console.WriteLine("Raw session standings log checks passed.");

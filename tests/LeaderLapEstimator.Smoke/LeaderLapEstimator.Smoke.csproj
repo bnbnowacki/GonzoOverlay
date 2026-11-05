@@ -12,5 +12,7 @@
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/StandingsLapGap.cs" Link="StandingsLapGap.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/RelativeLapRelation.cs" Link="RelativeLapRelation.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/RaceStandingsSource.cs" Link="RaceStandingsSource.cs" />
+    <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/SessionStandingsLog.cs" Link="SessionStandingsLog.cs" />
+    <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/RawSessionStandingsLog.cs" Link="RawSessionStandingsLog.cs" />
   </ItemGroup>
 </Project>

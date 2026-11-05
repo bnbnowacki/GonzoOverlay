@@ -9,10 +9,12 @@ public partial class MainWindow : Window
     private readonly OverlaySettingsStore _settingsStore = new();
     private readonly Queue<string> _debugLogLines = new();
     private readonly Queue<string> _fuelLogLines = new();
+    private readonly Queue<string> _standingsLogLines = new();
     private OverlaySettings _currentSettings = new();
     private OverlayWindow? _overlayWindow;
     private DebugLogWindow? _debugLogWindow;
     private DebugLogWindow? _fuelLogWindow;
+    private DebugLogWindow? _standingsLogWindow;
 
     private const int MaxDebugLogLines = 20000;
 
@@ -134,6 +136,7 @@ public partial class MainWindow : Window
         StopOverlay();
         _debugLogWindow?.Close();
         _fuelLogWindow?.Close();
+        _standingsLogWindow?.Close();
     }
 
     private void OverlayWindow_OnSettingsChanged(object? sender, EventArgs e)
@@ -310,6 +313,14 @@ public partial class MainWindow : Window
     {
         Dispatcher.InvokeAsync(() =>
         {
+            if (line.Contains(" | SDK-SESJA |", StringComparison.Ordinal))
+            {
+                _standingsLogLines.Enqueue(line);
+                while (_standingsLogLines.Count > MaxDebugLogLines) _standingsLogLines.Dequeue();
+                if (_standingsLogWindow is { IsVisible: true })
+                    _standingsLogWindow.SetLogText(string.Join(Environment.NewLine, _standingsLogLines));
+                return;
+            }
             _debugLogLines.Enqueue(line);
             while (_debugLogLines.Count > MaxDebugLogLines)
             {
@@ -321,6 +332,36 @@ public partial class MainWindow : Window
                 _debugLogWindow?.SetLogText(GetDebugLogText());
             }
         });
+    }
+
+    private void StandingsLog_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_standingsLogWindow is { IsVisible: true })
+        {
+            _standingsLogWindow.Activate();
+            return;
+        }
+        var window = new DebugLogWindow { Owner = this };
+        window.SetHeading("Log standings — dane sesji");
+        window.ClearRequested += StandingsLogWindow_OnClearRequested;
+        window.Closed += StandingsLogWindow_OnClosed;
+        _standingsLogWindow = window;
+        window.SetLogText(string.Join(Environment.NewLine, _standingsLogLines));
+        window.Show();
+    }
+
+    private void StandingsLogWindow_OnClearRequested(object? sender, EventArgs e)
+    {
+        _standingsLogLines.Clear();
+        _standingsLogWindow?.SetLogText(string.Empty);
+    }
+
+    private void StandingsLogWindow_OnClosed(object? sender, EventArgs e)
+    {
+        if (sender is not DebugLogWindow window || !ReferenceEquals(window, _standingsLogWindow)) return;
+        window.ClearRequested -= StandingsLogWindow_OnClearRequested;
+        window.Closed -= StandingsLogWindow_OnClosed;
+        _standingsLogWindow = null;
     }
 
     private void OverlayWindow_OnFuelLogUpdated(string line)
