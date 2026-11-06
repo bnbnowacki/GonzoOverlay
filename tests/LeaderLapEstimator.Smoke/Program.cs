@@ -223,3 +223,91 @@ Check(rawLogger.Update(rawYaml, logTime.AddMinutes(1)) is not null, "periodic ra
 Check(rawLogger.Update(rawYaml.Replace("CurrentSessionNum: 2", "CurrentSessionNum: 3"), logTime.AddMinutes(1).AddSeconds(1)) is not null,
     "raw snapshot on session change");
 Console.WriteLine("Raw session standings log checks passed.");
+
+object StandingsFixture(int raceLaps, string sessionType = "Race") => new
+{
+    DriverInfo = new { DriverCarIdx = 2, Drivers = new[]
+    {
+        new { CarIdx = 0, UserName = "Leader", CarNumber = "1", LicString = "A 3.0", IRating = 2500, CarIsPaceCar = 0, IsSpectator = 0 },
+        new { CarIdx = 1, UserName = "Ahead", CarNumber = "2", LicString = "B 3.0", IRating = 1500, CarIsPaceCar = 0, IsSpectator = 0 },
+        new { CarIdx = 2, UserName = "Player", CarNumber = "3", LicString = "C 3.0", IRating = 1000, CarIsPaceCar = 0, IsSpectator = 0 }
+    } },
+    QualifyResultsInfo = new { Results = new[]
+    {
+        new { CarIdx = 2, Position = 0, FastestTime = 50.0 },
+        new { CarIdx = 1, Position = 1, FastestTime = 51.0 },
+        new { CarIdx = 0, Position = 2, FastestTime = -1.0 }
+    } },
+    SessionInfo = new { CurrentSessionNum = 3, Sessions = new[] { new
+    {
+        SessionNum = 3, SessionType = sessionType, ResultsLapsComplete = raceLaps,
+        ResultsPositions = new[]
+        {
+            new { CarIdx = 0, Position = 1, Lap = 0, Time = 0.0, LapsComplete = raceLaps, LastTime = 61.0, FastestTime = 50.0 },
+            new { CarIdx = 1, Position = 2, Lap = 1, Time = 80.5342, LapsComplete = raceLaps - 1, LastTime = 87.0, FastestTime = 54.0 },
+            new { CarIdx = 2, Position = 3, Lap = 5, Time = 339.8583, LapsComplete = raceLaps == 0 ? 0 : 7, LastTime = -1.0, FastestTime = -1.0 }
+        }
+    } } }
+};
+var raceStandings = SessionStandingsBuilder.Build(StandingsFixture(12), logTime);
+Check(!raceStandings.DisplayQualifyingResults && raceStandings.Entries.Count == 3, "race session standings available immediately");
+Check(raceStandings.Entries[2].IsPlayer && raceStandings.Entries[2].LapsBehindLeader == 5 &&
+    raceStandings.Entries[2].LapsBehindAhead is null && raceStandings.Entries[2].IntervalSeconds is null,
+    "unequal counts on joining do not invent an interval");
+Check(raceStandings.Entries[2].LastLapSeconds is null && raceStandings.Entries[2].BestLapSeconds is null &&
+    raceStandings.Entries[2].LapsStarted is null, "invalid lap times and session Lap are not treated as started laps");
+var gridStandings = SessionStandingsBuilder.Build(StandingsFixture(0), logTime);
+Check(gridStandings.DisplayQualifyingResults && gridStandings.Entries[0].IsPlayer && gridStandings.Entries[0].Position == 1 &&
+    gridStandings.Entries[1].IntervalSeconds == 1, "qualifying order before race lap");
+var practiceStandings = SessionStandingsBuilder.Build(StandingsFixture(12, "Practice"), logTime);
+Check(!practiceStandings.DisplayQualifyingResults && practiceStandings.Entries[1].LeaderGapSeconds == 4 &&
+    practiceStandings.Entries[2].LeaderGapSeconds is null, "practice uses session best laps and handles missing values");
+var missingStandings = SessionStandingsBuilder.Build(new { }, logTime);
+Check(missingStandings.Entries.Count == 0, "missing session data yields empty standings");
+Console.WriteLine("Session standings builder checks passed.");
+
+var intervalTracker = new SessionRaceIntervalTracker();
+SessionInterval Interval(int aheadLaps, int playerLaps, float? aheadTime, float? playerTime) =>
+    intervalTracker.Update("race/1", new[]
+    {
+        new SessionIntervalInput(1, aheadLaps, aheadTime),
+        new SessionIntervalInput(2, playerLaps, playerTime)
+    })[2];
+Check(Interval(1, 1, 3, 5.9f).Seconds is > 2.89f and < 2.91f, "same lap baseline");
+Check(Interval(2, 1, 14.7f, 5.9f).Seconds is > 2.89f and < 2.91f, "first crossing retains last known seconds");
+Check(Interval(3, 1, 18.6f, 5.9f) == new SessionInterval(1, null), "second crossing laps stopped driver once");
+Check(Interval(4, 1, 25.1f, 5.9f) == new SessionInterval(2, null), "subsequent crossing adds another lap");
+Check(Interval(4, 2, 25.1f, 120.7f) == new SessionInterval(2, null), "returning driver crossing updates actual laps down");
+intervalTracker.Reset();
+Check(Interval(9, 8, 62.212f, 150) == new SessionInterval(null, null), "mid-race unequal lap counts are ambiguous");
+var unlapped = Interval(9, 9, 62.212f, 121.7973f);
+Check(unlapped.Laps == 0 && Math.Abs(unlapped.Seconds!.Value - 59.5853f) < 0.001f, "unlapping switches to seconds on own crossing");
+Check(Interval(10, 9, 65.9488f, 121.7973f) == unlapped, "keep last known interval after ahead crosses");
+var nextCrossing = Interval(10, 10, 65.9488f, 119.5258f);
+Check(nextCrossing.Laps == 0 && Math.Abs(nextCrossing.Seconds!.Value - 53.577f) < 0.001f, "next own crossing updates seconds");
+Check(Interval(10, 10, 65.9488f, 119.5258f) == nextCrossing, "unrelated result updates do not change interval");
+var newAhead = intervalTracker.Update("race/1", new[]
+{
+    new SessionIntervalInput(3, 10, 70),
+    new SessionIntervalInput(2, 10, 119.5258f)
+})[2];
+Check(newAhead.Laps == 0 && Math.Abs(newAhead.Seconds!.Value - 49.5258f) < 0.001f,
+    "position change recalculates against new driver ahead");
+var newRace = intervalTracker.Update("race/2", new[]
+{
+    new SessionIntervalInput(3, 3, 10),
+    new SessionIntervalInput(2, 1, 25)
+})[2];
+Check(newRace == new SessionInterval(null, null), "new race clears previous interval");
+intervalTracker.Reset();
+Interval(4, 3, 20, 80);
+Check(Interval(4, 4, 20, 80) == new SessionInterval(null, null), "wait for scoring time after own crossing");
+Check(Interval(4, 4, 20, 75).Seconds == 55, "delayed scoring time updates interval");
+intervalTracker.Reset();
+var lastKnown = Interval(3, 3, 20, 25);
+Check(Interval(4, 3, 21, 25) == lastKnown, "keep seconds when car ahead crosses");
+Check(Interval(4, 4, 21, 25) == lastKnown, "keep seconds until new scoring time arrives");
+Check(Interval(4, 4, 21, 27).Seconds == 6, "replace seconds when updated scoring time arrives");
+Check(Interval(5, 4, 22, 27).Seconds == 6, "stationary driver retains last known seconds");
+Check(Interval(6, 4, 23, 27) == new SessionInterval(1, null), "stationary driver shows lap down after next crossing");
+Console.WriteLine("Session race interval checks passed.");

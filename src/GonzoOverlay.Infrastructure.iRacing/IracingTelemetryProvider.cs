@@ -49,9 +49,8 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly LeaderLapEstimator _leaderLapEstimator = new();
     private readonly FuelLapTracker _fuelLapTracker = new();
-    private readonly StandingsLapGap _standingsLapGap = new();
-    private readonly RaceStandingsSource _raceStandingsSource = new();
     private readonly SessionStandingsLog _sessionStandingsLog = new();
+    private readonly SessionRaceIntervalTracker _sessionRaceIntervalTracker = new();
     private readonly RawSessionStandingsLog _rawSessionStandingsLog = new();
     private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
     private int? _fuelLogPreviousLap;
@@ -65,6 +64,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private IReadOnlyDictionary<int, IReadOnlyDictionary<int, RaceResultDebug>> _raceResultsDebug =
         new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
     private string? _previousLapGapDebugSignature;
+    private StandingsSnapshot _lastStandings = new("Unknown", false, Array.Empty<StandingEntry>(), DateTimeOffset.MinValue);
     private IReadOnlyList<double?>? _previousCarIdxLap;
     private IReadOnlyList<double?>? _previousCarIdxLapCompleted;
     private IReadOnlyList<double?>? _previousCarIdxLastLapTime;
@@ -129,8 +129,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             data.TrackWetness?.ToString() ?? "Unknown",
                             snapshot.Timestamp));
                         PublishDebugLapUpdates(data, snapshot.Timestamp);
-                        var standings = BuildStandingsSnapshot(data, snapshot.Timestamp);
-                        PublishStandings(standings);
+                        var standings = Volatile.Read(ref _lastStandings);
                         PublishLapGapDebug(data, standings, snapshot.Timestamp);
                         var relative = BuildRelativeSnapshot(data, snapshot.Timestamp, standings.DisplayQualifyingResults);
                         PublishRelative(relative);
@@ -155,6 +154,9 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                     OnSessionInfoUpdate = session =>
                     {
                         UpdateSessionMetadata(session);
+                        var standings = SessionStandingsBuilder.Build(session, DateTimeOffset.UtcNow, _sessionRaceIntervalTracker);
+                        Volatile.Write(ref _lastStandings, standings);
+                        PublishStandings(standings);
                         try
                         {
                             var standingsLog = _sessionStandingsLog.Update(session, DateTimeOffset.UtcNow);
@@ -174,9 +176,10 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         {
                             _leaderLapEstimator.Reset();
                             _fuelLapTracker.Reset();
-                            _standingsLapGap.Reset();
-                            _raceStandingsSource.Reset();
+                            Volatile.Write(ref _lastStandings, new StandingsSnapshot(
+                                "Unknown", false, Array.Empty<StandingEntry>(), DateTimeOffset.UtcNow));
                             _sessionStandingsLog.Reset();
+                            _sessionRaceIntervalTracker.Reset();
                             _rawSessionStandingsLog.Reset();
                             _previousLapGapDebugSignature = null;
                             _raceResultsDebug = new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
@@ -588,119 +591,6 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             Math.Abs(current.Value - previous.Value) > 0.0005;
     }
 
-    private StandingsSnapshot BuildStandingsSnapshot(TelemetryData data, DateTimeOffset timestamp)
-    {
-        var positions = ReadNumericArray(data.CarIdxPosition);
-        var intervalsToLeader = ReadNumericArray(data.CarIdxF2Time);
-        var lastLaps = ReadNumericArray(data.CarIdxLastLapTime);
-        var bestLaps = ReadNumericArray(data.CarIdxBestLapTime);
-        var startedLaps = ReadNumericArray(data.CarIdxLap);
-        var completedLaps = ReadNumericArray(data.CarIdxLapCompleted);
-        var sessionNumber = data.SessionNum ?? 0;
-        var sessionType = _sessionTypes.TryGetValue(sessionNumber, out var value)
-            ? value
-            : "Unknown";
-        var isRace = sessionType.Equals("Race", StringComparison.OrdinalIgnoreCase);
-        var useQualifying = _raceStandingsSource.UseQualifying(
-            ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), isRace, ReadInt(data.SessionState),
-            _qualifyingResults.Count > 0,
-            _drivers.Values.Any(driver => !driver.IsPaceCar && ReadArrayValue(completedLaps, driver.CarIdx) >= 1),
-            _drivers.Values.Any(driver => !driver.IsPaceCar && ReadArrayValue(positions, driver.CarIdx) > 0));
-        if (useQualifying)
-        {
-            var qualifyingEntries = _qualifyingResults.Values
-                .Where(result => _drivers.ContainsKey(result.CarIdx))
-                .OrderBy(result => result.Position)
-                .Select(result =>
-                {
-                    var driver = _drivers[result.CarIdx];
-                    return new StandingEntry(result.Position, driver.Number, driver.Driver, driver.Car,
-                        null, result.FastestTime, null, null, null, null, null, null,
-                        driver.SafetyRating, driver.IRating, driver.CarIdx == ReadInt(data.PlayerCarIdx));
-                }).ToList();
-            var gaps = NormalizePracticeLeaderGaps(qualifyingEntries);
-            var withQualifyingIntervals = gaps.Select((entry, index) => entry with
-            {
-                IntervalSeconds = index > 0 && entry.LeaderGapSeconds.HasValue && gaps[index - 1].LeaderGapSeconds.HasValue
-                    ? Math.Max(0, entry.LeaderGapSeconds.Value - gaps[index - 1].LeaderGapSeconds!.Value)
-                    : null
-            }).ToList();
-            return new StandingsSnapshot(sessionType, true, withQualifyingIntervals, timestamp);
-        }
-        _standingsLapGap.BeginSession(ReadInt(data.SessionNum), ReadInt(data.SessionUniqueID), isRace);
-        var leader = isRace
-            ? _drivers.Values.FirstOrDefault(driver => ReadArrayValue(positions, driver.CarIdx) == 1)
-            : null;
-        var leaderCompleted = leader is null ? null : ReadArrayValue(completedLaps, leader.CarIdx);
-
-        var orderedDrivers = _drivers.Values
-            .Where(driver => ReadArrayValue(positions, driver.CarIdx) > 0)
-            .OrderBy(driver => ReadArrayValue(positions, driver.CarIdx))
-            .ToList();
-
-        var entries = orderedDrivers
-            .Select((driver, index) =>
-            {
-                var position = ReadArrayValue(positions, driver.CarIdx);
-                var f2Time = ToFloat(ReadArrayValue(intervalsToLeader, driver.CarIdx));
-                var bestLap = ToFloat(ReadArrayValue(bestLaps, driver.CarIdx));
-                var ahead = index > 0 ? orderedDrivers[index - 1] : null;
-                var lapGaps = isRace
-                    ? _standingsLapGap.UpdateDriver(driver.CarIdx,
-                        ReadArrayValue(completedLaps, driver.CarIdx), leaderCompleted,
-                        ahead?.CarIdx,
-                        ahead is null ? null : ReadArrayValue(completedLaps, ahead.CarIdx))
-                    : new StandingsLapGaps(null, null);
-                if (!IsValidLap(bestLap) && !isRace && IsValidLap(f2Time))
-                {
-                    // In Practice/Qualify iRacing reports the fastest lap through F2Time.
-                    bestLap = f2Time;
-                }
-
-                return new StandingEntry(
-                    position.HasValue && position.Value > 0
-                        ? (int)Math.Round(position.Value)
-                        : int.MaxValue,
-                    driver.Number,
-                    driver.Driver,
-                    driver.Car,
-                    ToFloat(ReadArrayValue(lastLaps, driver.CarIdx)),
-                    bestLap,
-                    ReadInt(ReadArrayValue(completedLaps, driver.CarIdx)),
-                    ReadInt(ReadArrayValue(startedLaps, driver.CarIdx)),
-                    null,
-                    isRace ? f2Time : bestLap,
-                    lapGaps.Leader,
-                    lapGaps.Ahead,
-                    driver.SafetyRating,
-                    driver.IRating,
-                    driver.CarIdx == ReadInt(data.PlayerCarIdx));
-            })
-            .Where(entry => entry.Position != int.MaxValue)
-            .OrderBy(entry => entry.Position)
-            .ToList();
-
-        var normalizedEntries = !isRace
-            ? NormalizePracticeLeaderGaps(entries)
-            : entries;
-
-        var withIntervals = normalizedEntries
-            .Select((entry, index) =>
-            {
-                var previousLeaderGap = index > 0
-                    ? normalizedEntries[index - 1].LeaderGapSeconds
-                    : null;
-                float? interval = entry.LeaderGapSeconds.HasValue && previousLeaderGap.HasValue
-                    ? Math.Max(0, entry.LeaderGapSeconds.Value - previousLeaderGap.Value)
-                    : null;
-
-                return entry with { IntervalSeconds = interval };
-            })
-            .ToList();
-
-        return new StandingsSnapshot(sessionType, false, withIntervals, timestamp);
-    }
-
     private RelativeSnapshot BuildRelativeSnapshot(TelemetryData data, DateTimeOffset timestamp, bool useQualifying)
     {
         var positions = ReadNumericArray(data.CarIdxPosition);
@@ -892,32 +782,6 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             ? (int)Math.Round(position.Value)
             : 0;
     }
-
-    private static IReadOnlyList<StandingEntry> NormalizePracticeLeaderGaps(
-        IReadOnlyList<StandingEntry> entries)
-    {
-        var fastestLap = entries
-            .Where(entry => IsValidLap(entry.BestLapSeconds))
-            .Select(entry => entry.BestLapSeconds!.Value)
-            .DefaultIfEmpty()
-            .Min();
-
-        if (fastestLap <= 0)
-        {
-            return entries;
-        }
-
-        return entries
-            .Select(entry => entry with
-            {
-                LeaderGapSeconds = IsValidLap(entry.BestLapSeconds)
-                    ? Math.Max(0, entry.BestLapSeconds!.Value - fastestLap)
-                    : null
-            })
-            .ToList();
-    }
-
-    private static bool IsValidLap(float? value) => value.HasValue && value.Value > 0;
 
     private static IReadOnlyDictionary<int, DriverMetadata> ReadDrivers(object session)
     {

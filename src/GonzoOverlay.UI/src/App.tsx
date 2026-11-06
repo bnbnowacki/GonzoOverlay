@@ -84,7 +84,9 @@ function App() {
   });
   const [weather, setWeather] = useState(defaultWeather);
   const [telemetry, setTelemetry] = useState(defaultTelemetry);
-  const [standings, setStandings] = useState(defaultStandings);
+  const [standings, setStandings] = useState<StandingsSnapshot>(() => window.chrome?.webview
+    ? { ...defaultStandings, sessionType: 'Unknown', entries: [] }
+    : defaultStandings);
   const [relative, setRelative] = useState(defaultRelative);
   const [fuel, setFuel] = useState(defaultFuel);
 
@@ -122,6 +124,7 @@ function App() {
       }
 
       if (message.type === 'connection' && message.payload.state !== 'Connected') {
+        setStandings((current) => ({ ...current, sessionType: 'Unknown', entries: [] }));
         setWeather((current) => ({
           ...current,
           trackWetness: 'Unknown',

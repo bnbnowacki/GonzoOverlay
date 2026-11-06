@@ -27,6 +27,7 @@ public partial class OverlayWindow : Window
     private readonly OverlaySettings _settings;
     private readonly List<WidgetEditState> _editWidgets = new();
     private Task? _telemetryTask;
+    private StandingsSnapshot? _latestStandings;
     private WidgetEditState? _activeEditWidget;
     private bool _webViewReady;
     private bool _pageReady;
@@ -209,6 +210,8 @@ public partial class OverlayWindow : Window
             {
                 _pageReady = true;
                 SendOverlayConfig();
+                var standings = Volatile.Read(ref _latestStandings);
+                if (standings is not null) PostMessage("standings", standings);
             }
         }
         catch (JsonException)
@@ -440,6 +443,7 @@ public partial class OverlayWindow : Window
 
     private void OnStandingsUpdated(StandingsSnapshot snapshot)
     {
+        Volatile.Write(ref _latestStandings, snapshot);
         PostMessage("standings", snapshot);
     }
 
@@ -465,6 +469,8 @@ public partial class OverlayWindow : Window
 
     private void OnConnectionStateChanged(string state)
     {
+        if (!state.Equals("Connected", StringComparison.OrdinalIgnoreCase))
+            Volatile.Write(ref _latestStandings, null);
         PostMessage("connection", new { state });
     }
 

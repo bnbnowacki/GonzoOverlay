@@ -194,8 +194,12 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
         (previousServerBestLap === null ||
           currentBest! < previousServerBestLap - LAP_TIME_EPSILON_SECONDS);
 
+      if (usesBestLap && improvedPersonalBest && previousBest !== undefined) {
+        lapEvents.push({ key, highlight: 'none' });
+      }
+
       let pending = pendingLaps.current.get(key);
-      if (lapCompletedUpdate || lastLapUpdate) {
+      if (!usesBestLap && (lapCompletedUpdate || lastLapUpdate)) {
         pending = pending ?? {
           hasLapCompletedUpdate: false,
           hasLastLapUpdate: false,
@@ -211,7 +215,7 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
         pendingLaps.current.set(key, pending);
       }
 
-      if (pending) {
+      if (!usesBestLap && pending) {
         pending.personalBest ||= improvedPersonalBest;
         pending.serverBest ||= isNewServerRecord;
 
@@ -326,7 +330,7 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
             {(rowCapacity === null ? snapshot.entries : selectStandingsRows(snapshot.entries, rowCapacity)).map((entry, index, visibleEntries) => {
               const key = getDriverKey(entry);
               const lapTime = usesBestLap ? entry.bestLapSeconds : entry.lastLapSeconds;
-              const lapEffect = lapEffects[key];
+              const lapEffect = lapTime !== null ? lapEffects[key] : undefined;
               const flashClass = lapEffect
                 ? lapEffect.highlight === 'serverBest'
                   ? 'standings-lap-flash-purple'

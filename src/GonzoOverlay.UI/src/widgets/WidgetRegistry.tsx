@@ -30,7 +30,7 @@ export const widgetRegistry: WidgetDefinition[] = [
   },
   {
     id: 'standings',
-    render: ({ standings }) => <StandingsWidget snapshot={standings} />,
+    render: ({ standings }) => standings.entries.length > 0 ? <StandingsWidget snapshot={standings} /> : null,
   },
   {
     id: 'relative',
