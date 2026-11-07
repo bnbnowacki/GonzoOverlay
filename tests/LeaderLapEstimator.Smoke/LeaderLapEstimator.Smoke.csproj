@@ -16,6 +16,7 @@
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/RawSessionStandingsLog.cs" Link="RawSessionStandingsLog.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/SessionStandingsBuilder.cs" Link="SessionStandingsBuilder.cs" />
     <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/SessionRaceIntervalTracker.cs" Link="SessionRaceIntervalTracker.cs" />
+    <Compile Include="../../src/GonzoOverlay.Infrastructure.iRacing/RelativeDebugLog.cs" Link="RelativeDebugLog.cs" />
     <Compile Include="../../src/GonzoOverlay.Core/Models/StandingsSnapshot.cs" Link="StandingsSnapshot.cs" />
   </ItemGroup>
 </Project>

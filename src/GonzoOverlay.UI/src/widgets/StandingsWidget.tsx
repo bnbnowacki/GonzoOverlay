@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { StandingsSnapshot, StandingEntry } from '../overlay/types';
+import { DriverRatingBadge } from './DriverRatingBadge';
 import { selectStandingsRows } from './standingsRows';
 
 type LapHighlight = 'none' | 'personalBest' | 'serverBest';
@@ -49,16 +50,6 @@ function formatGap(seconds: number | null) {
   }
 
   return `+${seconds.toFixed(3)}`;
-}
-
-function formatIRating(irating: number | null) {
-  if (irating === null) {
-    return '--';
-  }
-
-  return irating >= 1000
-    ? `${(irating / 1000).toFixed(1).replace('.0', '')}k`
-    : String(irating);
 }
 
 function getDriverKey(entry: StandingEntry) {
@@ -350,8 +341,7 @@ export function StandingsWidget({ snapshot }: StandingsWidgetProps) {
                   <td className="standings-position">{entry.position}</td>
                   <td className="standings-driver">{entry.driver}</td>
                   <td className="standings-number">{entry.number}</td>
-                  <td>{entry.safetyRating || '--'}</td>
-                  <td>{formatIRating(entry.iRating)}</td>
+                  <td className="standings-rating"><DriverRatingBadge safetyRating={entry.safetyRating} iRating={entry.iRating} /></td>
                   <td className="standings-car">{entry.car}</td>
                   <td>{entry.position === 1
                     ? 'INT'

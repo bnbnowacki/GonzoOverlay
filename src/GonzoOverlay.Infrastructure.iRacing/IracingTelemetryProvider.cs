@@ -52,6 +52,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
     private readonly SessionStandingsLog _sessionStandingsLog = new();
     private readonly SessionRaceIntervalTracker _sessionRaceIntervalTracker = new();
     private readonly RawSessionStandingsLog _rawSessionStandingsLog = new();
+    private readonly RelativeDebugLog _relativeDebugLog = new();
     private (int? Session, int? SessionId, int? CarIdx)? _fuelLogContext;
     private int? _fuelLogPreviousLap;
     private float? _pitSpeedLimitMetersPerSecond;
@@ -181,6 +182,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                             _sessionStandingsLog.Reset();
                             _sessionRaceIntervalTracker.Reset();
                             _rawSessionStandingsLog.Reset();
+                            _relativeDebugLog.Reset();
                             _previousLapGapDebugSignature = null;
                             _raceResultsDebug = new Dictionary<int, IReadOnlyDictionary<int, RaceResultDebug>>();
                             _fuelLogContext = null;
@@ -650,6 +652,7 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                 timestamp);
         }
 
+        var debugCars = new List<RelativeDebugCar>();
         var relativeEntries = _drivers.Values
             .Select(driver =>
             {
@@ -671,18 +674,27 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
                         playerClassEstLapTime,
                         driver.ClassEstLapTime);
 
+                var relation = isPlayer ? "same" : RelativeLapRelation.Calculate(
+                    playerCompletedLaps,
+                    ReadArrayValue(completedLaps, driver.CarIdx),
+                    playerLapDistance,
+                    driverLapDistance,
+                    gap);
+                if (!isPlayer && gap.HasValue && Math.Abs(gap.Value) <= 3)
+                {
+                    debugCars.Add(new RelativeDebugCar(driver.CarIdx, driver.Driver, position,
+                        ReadArrayValue(completedLaps, driver.CarIdx), driverLapDistance, estimatedTime,
+                        driver.ClassEstLapTime, gap.Value, relation, isOnPitRoad));
+                }
                 return new RelativeEntry(
                     position,
                     driver.Driver,
                     gap,
                     isPlayer,
                     isOnPitRoad,
-                    isPlayer ? "same" : RelativeLapRelation.Calculate(
-                        playerCompletedLaps,
-                        ReadArrayValue(completedLaps, driver.CarIdx),
-                        playerLapDistance,
-                        driverLapDistance,
-                        gap));
+                    relation,
+                    driver.SafetyRating,
+                    driver.IRating is >= 0 ? driver.IRating : null);
             })
             .Where(entry => entry.IsPlayer || entry.GapToPlayerSeconds.HasValue)
             .ToList();
@@ -718,6 +730,21 @@ public sealed class IracingTelemetryProvider : ITelemetryProvider
             .Append(playerEntry)
             .Concat(behind)
             .ToList();
+
+        if (data.IsOnTrack != false)
+        {
+            var playerName = _drivers.TryGetValue(playerCarIdx, out var playerDriver) ? playerDriver.Driver : "Unknown";
+            var debugPlayer = new RelativeDebugCar(playerCarIdx, playerName, playerPosition,
+                playerCompletedLaps, playerLapDistance, playerEstimatedTime, playerClassEstLapTime, 0, "same",
+                ReadBooleanArrayValue(onPitRoad, playerCarIdx) == true);
+            var context = $"sesja={sessionNumber}/{ReadInt(data.SessionUniqueID)} typ={sessionType}";
+            var line = _relativeDebugLog.Update(timestamp, context, currentLap, debugPlayer, debugCars);
+            if (line is not null)
+            {
+                try { DebugLogUpdated?.Invoke(line); }
+                catch (Exception exception) { _logger.LogError(exception, "Błąd odbiorcy logu relative"); }
+            }
+        }
 
         return new RelativeSnapshot(
             sessionType,

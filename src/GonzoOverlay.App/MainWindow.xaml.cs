@@ -10,11 +10,13 @@ public partial class MainWindow : Window
     private readonly Queue<string> _debugLogLines = new();
     private readonly Queue<string> _fuelLogLines = new();
     private readonly Queue<string> _standingsLogLines = new();
+    private readonly Queue<string> _relativeLogLines = new();
     private OverlaySettings _currentSettings = new();
     private OverlayWindow? _overlayWindow;
     private DebugLogWindow? _debugLogWindow;
     private DebugLogWindow? _fuelLogWindow;
     private DebugLogWindow? _standingsLogWindow;
+    private DebugLogWindow? _relativeLogWindow;
 
     private const int MaxDebugLogLines = 20000;
 
@@ -137,6 +139,7 @@ public partial class MainWindow : Window
         _debugLogWindow?.Close();
         _fuelLogWindow?.Close();
         _standingsLogWindow?.Close();
+        _relativeLogWindow?.Close();
     }
 
     private void OverlayWindow_OnSettingsChanged(object? sender, EventArgs e)
@@ -313,6 +316,14 @@ public partial class MainWindow : Window
     {
         Dispatcher.InvokeAsync(() =>
         {
+            if (line.Contains(" | RELATIVE-DEBUG |", StringComparison.Ordinal))
+            {
+                _relativeLogLines.Enqueue(line);
+                while (_relativeLogLines.Count > MaxDebugLogLines) _relativeLogLines.Dequeue();
+                if (_relativeLogWindow is { IsVisible: true })
+                    _relativeLogWindow.SetLogText(string.Join(Environment.NewLine, _relativeLogLines));
+                return;
+            }
             if (line.Contains(" | SDK-SESJA |", StringComparison.Ordinal))
             {
                 _standingsLogLines.Enqueue(line);
@@ -332,6 +343,36 @@ public partial class MainWindow : Window
                 _debugLogWindow?.SetLogText(GetDebugLogText());
             }
         });
+    }
+
+    private void RelativeLog_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_relativeLogWindow is { IsVisible: true })
+        {
+            _relativeLogWindow.Activate();
+            return;
+        }
+        var window = new DebugLogWindow { Owner = this };
+        window.SetHeading("Log relative — mijanie aut");
+        window.ClearRequested += RelativeLogWindow_OnClearRequested;
+        window.Closed += RelativeLogWindow_OnClosed;
+        _relativeLogWindow = window;
+        window.SetLogText(string.Join(Environment.NewLine, _relativeLogLines));
+        window.Show();
+    }
+
+    private void RelativeLogWindow_OnClearRequested(object? sender, EventArgs e)
+    {
+        _relativeLogLines.Clear();
+        _relativeLogWindow?.SetLogText(string.Empty);
+    }
+
+    private void RelativeLogWindow_OnClosed(object? sender, EventArgs e)
+    {
+        if (sender is not DebugLogWindow window || !ReferenceEquals(window, _relativeLogWindow)) return;
+        window.ClearRequested -= RelativeLogWindow_OnClearRequested;
+        window.Closed -= RelativeLogWindow_OnClosed;
+        _relativeLogWindow = null;
     }
 
     private void StandingsLog_OnClick(object sender, RoutedEventArgs e)

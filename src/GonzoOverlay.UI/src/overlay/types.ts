@@ -72,6 +72,8 @@ export type RelativeEntry = {
   isPlayer: boolean;
   isOnPitRoad: boolean;
   lapRelation: 'same' | 'ahead' | 'behind' | 'unknown';
+  safetyRating: string;
+  iRating: number | null;
 };
 
 export type RelativeSnapshot = {

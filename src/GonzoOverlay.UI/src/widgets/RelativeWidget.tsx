@@ -1,4 +1,5 @@
 import type { RelativeSnapshot } from '../overlay/types';
+import { DriverRatingBadge } from './DriverRatingBadge';
 
 type RelativeWidgetProps = {
   snapshot: RelativeSnapshot;
@@ -16,11 +17,7 @@ function formatGap(seconds: number | null, isPlayer: boolean) {
   return `${seconds > 0 ? '+' : ''}${seconds.toFixed(1)}`;
 }
 
-function formatPosition(position: number, isPlayer: boolean) {
-  if (isPlayer) {
-    return position > 0 ? position : 'YOU';
-  }
-
+function formatPosition(position: number) {
   return position > 0 ? position : '--';
 }
 
@@ -90,6 +87,7 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
       <table className="relative-table">
         <colgroup>
           <col className="relative-position-column" />
+          <col className="relative-rating-column" />
           <col />
           <col className="relative-gap-column" />
         </colgroup>
@@ -98,6 +96,7 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
             if (!entry) {
               return (
                 <tr className="relative-empty" key={`empty-${index}`}>
+                  <td />
                   <td />
                   <td />
                   <td />
@@ -114,7 +113,10 @@ export function RelativeWidget({ snapshot }: RelativeWidgetProps) {
                 ].filter(Boolean).join(' ') || undefined}
               >
                 <td className="relative-position">
-                  {formatPosition(entry.position, entry.isPlayer)}
+                  {formatPosition(entry.position)}
+                </td>
+                <td className="relative-rating">
+                  <DriverRatingBadge safetyRating={entry.safetyRating} iRating={entry.iRating} />
                 </td>
                 <td className={[
                   'relative-driver',

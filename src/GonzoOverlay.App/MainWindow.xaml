@@ -97,8 +97,14 @@
                 <Button x:Name="StandingsLogButton"
                         Width="110"
                         Height="28"
+                        Margin="0,0,8,0"
                         Content="Log standings"
                         Click="StandingsLog_OnClick" />
+                <Button x:Name="RelativeLogButton"
+                        Width="100"
+                        Height="28"
+                        Content="Log relative"
+                        Click="RelativeLog_OnClick" />
             </StackPanel>
         </StackPanel>
 

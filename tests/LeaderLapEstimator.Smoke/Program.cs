@@ -311,3 +311,23 @@ Check(Interval(4, 4, 21, 27).Seconds == 6, "replace seconds when updated scoring
 Check(Interval(5, 4, 22, 27).Seconds == 6, "stationary driver retains last known seconds");
 Check(Interval(6, 4, 23, 27) == new SessionInterval(1, null), "stationary driver shows lap down after next crossing");
 Console.WriteLine("Session race interval checks passed.");
+
+var relativeDebug = new RelativeDebugLog();
+var relativePlayer = new RelativeDebugCar(2, "Player", 4, 5, 0.5001, 30.2f, 60, 0, "same", false);
+var relativeRival = new RelativeDebugCar(3, "Rival", 5, 5, 0.5002, 30.1f, 60, -0.1f, "same", false);
+Check(relativeDebug.Update(logTime, "Race/1", 6, relativePlayer, new[] { relativeRival with { Gap = 4 } }) is null,
+    "relative log ignores distant cars");
+var relativeFirst = relativeDebug.Update(logTime, "Race/1", 6, relativePlayer, new[] { relativeRival });
+Check(relativeFirst is not null && relativeFirst.Contains("RELATIVE-DEBUG") && relativeFirst.Contains("nazwa=Rival") &&
+    relativeFirst.Contains("dystans=0.500200"), "relative log records nearby car and position");
+Check(relativeDebug.Update(logTime.AddMilliseconds(20), "Race/1", 6, relativePlayer, new[] { relativeRival }) is null,
+    "unchanged nearby data is sampled at a limited rate");
+Check(relativeDebug.Update(logTime.AddMilliseconds(30), "Race/1", 6, relativePlayer,
+    new[] { relativeRival with { Relation = "ahead" } })!.Contains("relacja=ahead"),
+    "brief colour transition is logged immediately");
+Check(relativeDebug.Update(logTime.AddMilliseconds(40), "Race/1", 6, relativePlayer,
+    new[] { relativeRival with { Gap = 0.1f } })!.Contains("gap=0.100000"),
+    "gap sign change is logged immediately");
+Check(relativeDebug.Update(logTime.AddMilliseconds(300), "Race/1", 6, relativePlayer,
+    new[] { relativeRival with { Gap = 0.1f } }) is not null, "nearby data receives periodic samples");
+Console.WriteLine("Relative debug log checks passed.");

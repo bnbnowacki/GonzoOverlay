@@ -18,4 +18,6 @@ public sealed record RelativeEntry(
     float? GapToPlayerSeconds,
     bool IsPlayer,
     bool IsOnPitRoad,
-    string LapRelation);
+    string LapRelation,
+    string SafetyRating,
+    int? IRating);
